@@ -20,3 +20,5 @@ Presentation Resources for Trainees_Aug2026 (002).pdf
 extraction-*.json
 poster-render-test.png
 real-poster.pdf
+deploy/
+posteriq-api-deploy.zip
