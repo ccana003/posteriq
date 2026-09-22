@@ -1,0 +1,236 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://posteriq.local/schemas/review.schema.json",
+  "title": "PosterIQ Review",
+  "description": "Structured output for a PosterIQ research poster review.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "poster_id",
+    "summary",
+    "findings"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "poster_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "overview",
+        "strengths",
+        "top_priorities"
+      ],
+      "properties": {
+        "overview": {
+          "type": "string",
+          "description": "Concise overall assessment of the poster."
+        },
+        "strengths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "top_priorities": {
+          "type": "array",
+          "maxItems": 5,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/finding"
+      }
+    }
+  },
+  "$defs": {
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "category",
+        "priority",
+        "finding",
+        "evidence",
+        "recommendation",
+        "guidance"
+      ],
+      "properties": {
+        "category": {
+          "type": "string",
+          "enum": [
+            "scientific_content",
+            "statistics",
+            "visual_design",
+            "readability",
+            "accessibility",
+            "required_elements"
+          ]
+        },
+        "priority": {
+          "type": "string",
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "finding": {
+          "type": "string",
+          "description": "Specific issue, observation, or opportunity identified in the poster."
+        },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "description",
+            "evidence_type"
+          ],
+          "properties": {
+            "description": {
+              "type": "string",
+              "description": "Poster-specific evidence supporting the finding."
+            },
+            "evidence_type": {
+              "type": "string",
+              "enum": [
+                "text",
+                "table",
+                "layout",
+                "visual",
+                "multiple"
+              ]
+            },
+            "section": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "page_number": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1
+            },
+            "block_ids": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        "recommendation": {
+          "type": "string",
+          "description": "Concrete action the poster author can take."
+        },
+        "guidance": {
+          "$ref": "#/$defs/guidance"
+        }
+      }
+    },
+    "guidance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "source",
+        "section",
+        "reference_id"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "curated_standard",
+            "general_suggestion"
+          ]
+        },
+        "source": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "section": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reference_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "general_suggestion"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "source": {
+                "type": "null"
+              },
+              "section": {
+                "type": "null"
+              },
+              "reference_id": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "curated_standard"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "source": {
+                "type": "string",
+                "minLength": 1
+              },
+              "reference_id": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

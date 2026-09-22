@@ -1,2 +1,4 @@
 azure-functions
 azure-storage-blob
+azure-ai-documentintelligence
+PyMuPDF
