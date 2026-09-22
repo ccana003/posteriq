@@ -2,3 +2,4 @@ azure-functions
 azure-storage-blob
 azure-ai-documentintelligence
 PyMuPDF
+openai==1.60.2

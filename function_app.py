@@ -1,12 +1,15 @@
 import json
 import os
 import uuid
+import base64
 
 import azure.functions as func
 import pymupdf
 from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.core.credentials import AzureKeyCredential
 from azure.storage.blob import BlobServiceClient, ContentSettings
+from openai import AzureOpenAI
+from knowledge_base import search_guidance
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
@@ -44,6 +47,18 @@ def get_document_intelligence_client():
         credential=AzureKeyCredential(key)
     )
 
+def get_openai_client():
+    """
+    Create the Azure OpenAI client used for PosterIQ reviews.
+    """
+    endpoint = os.environ["POSTERIQ_OPENAI_ENDPOINT"]
+    api_key = os.environ["POSTERIQ_OPENAI_KEY"]
+
+    return AzureOpenAI(
+        azure_endpoint=endpoint,
+        api_key=api_key,
+        api_version="2024-10-21"
+    )
 
 def polygon_to_list(polygon):
     """Convert an Azure polygon to a JSON-safe list."""
@@ -219,6 +234,304 @@ def render_poster_image(pdf_bytes):
     finally:
         document.close()
         
+def get_review_guidance():
+    """
+    Retrieve a small set of curated guidance records for poster review.
+
+    The MVP uses keyword retrieval. Later this can be replaced with
+    semantic/vector retrieval without changing the review pipeline.
+    """
+    queries = [
+        "poster readability font contrast white space",
+        "visual hierarchy figures graphics alignment",
+        "poster sections title introduction methods results conclusion",
+        "concise text bullets jargon audience key message"
+    ]
+
+    guidance_by_id = {}
+
+    for query in queries:
+        matches = search_guidance(query, limit=5)
+
+        for match in matches:
+            record = match["record"]
+            reference_id = record.get("reference_id")
+
+            if reference_id:
+                guidance_by_id[reference_id] = record
+
+    return list(guidance_by_id.values())        
+
+def build_review_context(poster_structure, guidance_records):
+    """
+    Build the text context supplied to the PosterIQ review model.
+    """
+
+    guidance = []
+
+    for record in guidance_records:
+        guidance.append({
+            "reference_id": record.get("reference_id"),
+            "category": record.get("category"),
+            "source": record.get("source"),
+            "source_section": record.get("source_section"),
+            "guidance": record.get("guidance"),
+            "applies_to": record.get("applies_to", [])
+        })
+
+    return {
+        "poster": {
+            "title": poster_structure.get("title"),
+            "pages": poster_structure.get("pages", []),
+            "content_blocks": poster_structure.get(
+                "content_blocks",
+                []
+            ),
+            "headings": poster_structure.get("headings", []),
+            "tables": poster_structure.get("tables", []),
+            "layout": poster_structure.get("layout", {}),
+            "full_text": poster_structure.get("full_text", "")
+        },
+        "curated_guidance": guidance
+    }
+ 
+POSTERIQ_REVIEW_SYSTEM_PROMPT = """
+You are PosterIQ, an AI assistant that reviews scientific research posters.
+
+You will receive:
+1. Structured poster content extracted from the PDF.
+2. Spatial information about poster elements.
+3. A rendered image of the poster.
+4. Curated guidance records supplied by PosterIQ.
+
+Evaluate the poster across these categories:
+- scientific_content
+- statistics
+- visual_design
+- readability
+- accessibility
+- required_elements
+
+IMPORTANT EVIDENCE RULES
+
+Base findings on evidence visible in the supplied poster content, tables,
+layout data, or rendered image.
+
+Do not invent missing poster content, statistical results, design properties,
+institutional requirements, or source material.
+
+CURATED GUIDANCE RULES
+
+The curated guidance supplied in the request is the only material you may
+describe as a curated standard.
+
+When a recommendation is directly supported by a supplied guidance record:
+- guidance.type must be "curated_standard"
+- guidance.reference_id must exactly match that record's reference_id
+- guidance.source must match the supplied source
+- guidance.section must identify the supplied source section
+
+Never invent a reference_id, source, section, requirement, or institutional
+standard.
+
+GENERAL SUGGESTION RULES
+
+You may identify useful issues that are not covered by the supplied curated
+guidance.
+
+For these:
+- guidance.type must be "general_suggestion"
+- guidance.source must be null
+- guidance.section must be null
+- guidance.reference_id must be null
+
+Do not present a general suggestion as an institutional requirement.
+
+STATISTICS
+
+Evaluate statistical reporting when the poster provides enough evidence to
+do so.
+
+If no statistical guidance record has been supplied, statistical
+recommendations must be labeled as general suggestions.
+
+Do not invent analyses, sample sizes, statistical tests, effect estimates,
+confidence intervals, p-values, or results that are not present.
+
+VISUAL REVIEW
+
+Use the rendered poster image for judgments involving visual hierarchy,
+contrast, density, whitespace, alignment, graphics, tables, and overall
+legibility.
+
+Use extracted spatial information as additional evidence.
+
+PRIORITIZATION
+
+Use:
+- high: likely to materially affect interpretation, scientific clarity,
+  accessibility, or the reader's ability to understand the poster.
+- medium: meaningful improvement that does not fundamentally prevent
+  understanding.
+- low: refinement or polish.
+
+OUTPUT
+
+Return only valid JSON conforming to the PosterIQ review schema supplied
+with the request.
+
+Do not include markdown, commentary, or text outside the JSON object.
+"""
+
+def load_review_schema():
+    """
+    Load the PosterIQ structured review JSON schema.
+    """
+    schema_path = os.path.join(
+        os.path.dirname(__file__),
+        "schemas",
+        "review.schema.json"
+    )
+
+    with open(schema_path, "r", encoding="utf-8") as file:
+        return json.load(file)
+
+def generate_poster_review(
+    poster_id,
+    poster_structure,
+    poster_image_bytes,
+    guidance_records
+):
+    """
+    Generate a structured PosterIQ review using extracted poster data,
+    the rendered poster image, and curated guidance.
+    """
+    client = get_openai_client()
+    deployment = os.environ["POSTERIQ_OPENAI_DEPLOYMENT"]
+
+    review_context = build_review_context(
+        poster_structure,
+        guidance_records
+    )
+
+    review_context["poster_id"] = poster_id
+
+    review_schema = load_review_schema()
+
+    image_base64 = base64.b64encode(
+        poster_image_bytes
+    ).decode("utf-8")
+
+    response = client.chat.completions.create(
+        model=deployment,
+        messages=[
+            {
+                "role": "system",
+                "content": POSTERIQ_REVIEW_SYSTEM_PROMPT
+            },
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": (
+                            "Review this research poster using the supplied "
+                            "poster evidence and curated guidance.\n\n"
+                            "POSTERIQ INPUT:\n"
+                            + json.dumps(review_context)
+                        )
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": (
+                                "data:image/png;base64,"
+                                + image_base64
+                            ),
+                            "detail": "low"
+                        }
+                    }
+                ]
+            }
+        ],
+        response_format={
+            "type": "json_schema",
+            "json_schema": {
+                "name": "posteriq_review",
+                "strict": True,
+                "schema": review_schema
+            }
+        },
+        max_completion_tokens=3000
+    )
+
+    choice = response.choices[0]
+    review_text = choice.message.content
+
+    print(
+        "PosterIQ model response: "
+        f"finish_reason={choice.finish_reason}, "
+        f"content_length={len(review_text or '')}"
+    )
+
+    if not review_text:
+        raise RuntimeError(
+            "Azure OpenAI returned no review content. "
+            f"finish_reason={choice.finish_reason}"
+        )
+
+    
+    review = json.loads(review_text)
+
+    return validate_review_guidance(
+        review,
+        guidance_records
+    )
+ 
+def validate_review_guidance(review, guidance_records):
+    """
+    Enforce PosterIQ guidance provenance after model generation.
+
+    Curated citations are resolved against the actual knowledge records.
+    Unknown or unsupported references are converted to general suggestions.
+    """
+    guidance_by_id = {
+        record.get("reference_id"): record
+        for record in guidance_records
+        if record.get("reference_id")
+    }
+
+    for finding in review.get("findings", []):
+        guidance = finding.get("guidance", {})
+        guidance_type = guidance.get("type")
+        reference_id = guidance.get("reference_id")
+
+        if guidance_type == "curated_standard":
+            record = guidance_by_id.get(reference_id)
+
+            if record:
+                # PosterIQ, not the model, supplies authoritative provenance.
+                guidance["source"] = record.get("source")
+                guidance["section"] = record.get("source_section")
+                guidance["reference_id"] = record.get("reference_id")
+
+            else:
+                # Never allow an invented or unavailable citation to appear
+                # as curated guidance.
+                guidance["type"] = "general_suggestion"
+                guidance["source"] = None
+                guidance["section"] = None
+                guidance["reference_id"] = None
+
+        else:
+            # General suggestions must never carry institutional provenance.
+            guidance["type"] = "general_suggestion"
+            guidance["source"] = None
+            guidance["section"] = None
+            guidance["reference_id"] = None
+
+    return review
+ 
 @app.route(route="health", methods=["GET"])
 def health(req: func.HttpRequest) -> func.HttpResponse:
     """Health check endpoint for PosterIQ."""
@@ -463,3 +776,159 @@ def extract_poster(req: func.HttpRequest) -> func.HttpResponse:
             mimetype="application/json",
             status_code=500,
         )
+
+@app.route(route="ai-test", methods=["GET"])
+def ai_test(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    Minimal Azure OpenAI connectivity test.
+    """
+    try:
+        client = get_openai_client()
+        deployment = os.environ["POSTERIQ_OPENAI_DEPLOYMENT"]
+
+        response = client.chat.completions.create(
+            model=deployment,
+            messages=[
+                {
+                    "role": "user",
+                    "content": "Reply with exactly: PosterIQ connected"
+                }
+            ],
+            max_completion_tokens=10
+        )
+
+        message = response.choices[0].message.content
+
+        return func.HttpResponse(
+            json.dumps({
+                "status": "ok",
+                "response": message
+            }),
+            mimetype="application/json",
+            status_code=200
+        )
+
+    except Exception as exc:
+        print(f"Azure OpenAI test failed: {type(exc).__name__}: {exc}")
+
+        return func.HttpResponse(
+            json.dumps({
+                "status": "error",
+                "message": "Azure OpenAI connection test failed."
+            }),
+            mimetype="application/json",
+            status_code=500
+        )
+        
+@app.route(
+    route="posters/{poster_id}/review",
+    methods=["POST"]
+)
+def review_poster(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    Generate a PosterIQ review using Document Intelligence,
+    the rendered poster image, curated guidance, and Azure OpenAI.
+    """
+    try:
+        poster_id = req.route_params.get("poster_id")
+
+        if not poster_id:
+            return func.HttpResponse(
+                json.dumps({
+                    "error": "Poster ID is required."
+                }),
+                mimetype="application/json",
+                status_code=400
+            )
+
+        try:
+            uuid.UUID(poster_id)
+        except ValueError:
+            return func.HttpResponse(
+                json.dumps({
+                    "error": "Invalid poster ID."
+                }),
+                mimetype="application/json",
+                status_code=400
+            )
+
+        container_name = os.environ.get(
+            "POSTERIQ_POSTERS_CONTAINER",
+            "posters"
+        )
+
+        blob_service = get_blob_service_client()
+
+        pdf_blob = blob_service.get_blob_client(
+            container=container_name,
+            blob=f"{poster_id}.pdf"
+        )
+
+        image_blob = blob_service.get_blob_client(
+            container=container_name,
+            blob=f"{poster_id}.png"
+        )
+
+        if not pdf_blob.exists():
+            return func.HttpResponse(
+                json.dumps({
+                    "error": "Poster PDF was not found."
+                }),
+                mimetype="application/json",
+                status_code=404
+            )
+
+        if not image_blob.exists():
+            return func.HttpResponse(
+                json.dumps({
+                    "error": "Rendered poster image was not found."
+                }),
+                mimetype="application/json",
+                status_code=404
+            )
+
+        poster_bytes = pdf_blob.download_blob().readall()
+        poster_image_bytes = image_blob.download_blob().readall()
+
+        # Extract structured scientific and spatial content.
+        document_client = get_document_intelligence_client()
+
+        poller = document_client.begin_analyze_document(
+            "prebuilt-layout",
+            body=poster_bytes
+        )
+
+        result = poller.result()
+
+        poster_structure = build_posteriq_structure(result)
+
+        # Retrieve the curated PosterIQ guidance relevant to review.
+        guidance_records = get_review_guidance()
+
+        # Generate the multimodal structured review.
+        review = generate_poster_review(
+            poster_id=poster_id,
+            poster_structure=poster_structure,
+            poster_image_bytes=poster_image_bytes,
+            guidance_records=guidance_records
+        )
+
+        return func.HttpResponse(
+            json.dumps(review),
+            mimetype="application/json",
+            status_code=200
+        )
+
+    except Exception as exc:
+        print(
+            f"PosterIQ review error: "
+            f"{type(exc).__name__}: {exc}"
+        )
+
+        return func.HttpResponse(
+            json.dumps({
+                "error": "PosterIQ could not review the poster."
+            }),
+            mimetype="application/json",
+            status_code=500
+        )        

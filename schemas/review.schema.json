@@ -17,8 +17,7 @@
       "const": "1.0"
     },
     "poster_id": {
-      "type": "string",
-      "format": "uuid"
+      "type": "string"
     },
     "summary": {
       "type": "object",
@@ -96,7 +95,10 @@
           "additionalProperties": false,
           "required": [
             "description",
-            "evidence_type"
+            "evidence_type",
+            "section",
+            "page_number",
+            "block_ids"
           ],
           "properties": {
             "description": {
@@ -123,14 +125,12 @@
               "type": [
                 "integer",
                 "null"
-              ],
-              "minimum": 1
+              ]
             },
             "block_ids": {
               "type": "array",
               "items": {
-                "type": "integer",
-                "minimum": 0
+                "type": "integer"
               }
             }
           }
@@ -179,58 +179,7 @@
             "null"
           ]
         }
-      },
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "type": {
-                "const": "general_suggestion"
-              }
-            },
-            "required": [
-              "type"
-            ]
-          },
-          "then": {
-            "properties": {
-              "source": {
-                "type": "null"
-              },
-              "section": {
-                "type": "null"
-              },
-              "reference_id": {
-                "type": "null"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "type": {
-                "const": "curated_standard"
-              }
-            },
-            "required": [
-              "type"
-            ]
-          },
-          "then": {
-            "properties": {
-              "source": {
-                "type": "string",
-                "minLength": 1
-              },
-              "reference_id": {
-                "type": "string",
-                "minLength": 1
-              }
-            }
-          }
-        }
-      ]
+      }
     }
   }
 }
