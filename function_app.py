@@ -462,7 +462,7 @@ def generate_poster_review(
                 "schema": review_schema
             }
         },
-        max_completion_tokens=3000
+        max_completion_tokens=6000
     )
 
     choice = response.choices[0]

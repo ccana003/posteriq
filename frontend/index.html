@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>PosterIQ | Research Poster Review</title>
+
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <header class="site-header">
+        <div class="header-inner">
+
+            <a href="#" class="brand">
+                <span class="brand-mark">P</span>
+
+                <span class="brand-text">
+                    <strong>PosterIQ</strong>
+                    <small>Research Poster Review</small>
+                </span>
+            </a>
+
+            <div class="header-badge">
+                AI-guided feedback
+            </div>
+
+        </div>
+    </header>
+
+
+    <main>
+
+        <!-- =========================================================
+             INTRO
+        ========================================================== -->
+        <section class="hero">
+
+            <div class="hero-content">
+
+                <div class="eyebrow">
+                    Research communication
+                </div>
+
+                <h1>
+                    Make your research poster
+                    <span>clearer and stronger.</span>
+                </h1>
+
+                <p class="hero-description">
+                    Upload your research poster and receive structured feedback
+                    on scientific content, readability, statistics, accessibility,
+                    and visual presentation.
+                </p>
+
+            </div>
+
+        </section>
+
+
+        <!-- =========================================================
+             UPLOAD WORKSPACE
+        ========================================================== -->
+        <section class="workspace">
+
+            <!-- UPLOAD CARD -->
+            <div class="upload-card">
+
+                <div class="upload-heading">
+
+                    <h2>
+                        Review your poster
+                    </h2>
+
+                    <p>
+                        Upload a PDF of your research poster to begin.
+                    </p>
+
+                </div>
+
+
+                <!-- DROP ZONE -->
+                <div
+                    id="dropZone"
+                    class="drop-zone"
+                    tabindex="0"
+                    role="button"
+                    aria-label="Upload research poster PDF"
+                >
+
+                    <input
+                        id="fileInput"
+                        type="file"
+                        accept=".pdf,application/pdf"
+                        hidden
+                    >
+
+                    <div class="upload-icon" aria-hidden="true">
+                        ↑
+                    </div>
+
+                    <h3>
+                        Drop your poster here
+                    </h3>
+
+                    <p>
+                        or
+                        <span class="browse-text">
+                            browse your computer
+                        </span>
+                    </p>
+
+                    <div class="file-requirements">
+                        PDF &nbsp;•&nbsp; Maximum 25 MB
+                    </div>
+
+                </div>
+
+
+                <!-- SELECTED FILE -->
+                <div
+                    id="selectedFile"
+                    class="selected-file hidden"
+                >
+
+                    <div class="file-icon">
+                        PDF
+                    </div>
+
+                    <div class="file-details">
+
+                        <strong id="fileName"></strong>
+
+                        <span id="fileSize"></span>
+
+                    </div>
+
+                    <button
+                        id="removeFile"
+                        class="remove-file"
+                        type="button"
+                        aria-label="Remove selected file"
+                    >
+                        ×
+                    </button>
+
+                </div>
+
+
+                <!-- REVIEW BUTTON -->
+                <button
+                    id="reviewButton"
+                    class="review-button"
+                    type="button"
+                    disabled
+                >
+                    Review my poster
+                </button>
+
+
+                <!-- ANALYSIS STATUS -->
+                <div
+                    id="analysisStatus"
+                    class="analysis-status hidden"
+                >
+
+                    <div class="spinner"></div>
+
+                    <div>
+
+                        <strong id="statusTitle">
+                            Analyzing your poster
+                        </strong>
+
+                        <p id="statusMessage">
+                            PosterIQ is preparing your review.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <!-- ERROR -->
+                <div
+                    id="errorMessage"
+                    class="error-message hidden"
+                ></div>
+
+            </div>
+
+
+            <!-- =====================================================
+                 WHAT POSTERIQ REVIEWS
+            ====================================================== -->
+            <aside class="review-info">
+
+                <div class="info-label">
+                    What PosterIQ reviews
+                </div>
+
+                <h2>
+                    Feedback across the entire poster
+                </h2>
+
+                <p>
+                    PosterIQ combines the content, structure, and visual
+                    presentation of your poster to provide focused,
+                    actionable feedback.
+                </p>
+
+
+                <div class="review-categories">
+
+                    <div class="category">
+
+                        <span>01</span>
+
+                        <div>
+                            <strong>Scientific content</strong>
+                            <p>
+                                Organization, clarity, and communication.
+                            </p>
+                        </div>
+
+                    </div>
+
+
+                    <div class="category">
+
+                        <span>02</span>
+
+                        <div>
+                            <strong>Statistics</strong>
+                            <p>
+                                Reporting and presentation of results.
+                            </p>
+                        </div>
+
+                    </div>
+
+
+                    <div class="category">
+
+                        <span>03</span>
+
+                        <div>
+                            <strong>Visual design</strong>
+                            <p>
+                                Hierarchy, layout, figures, and density.
+                            </p>
+                        </div>
+
+                    </div>
+
+
+                    <div class="category">
+
+                        <span>04</span>
+
+                        <div>
+                            <strong>Readability</strong>
+                            <p>
+                                Language, text density, and organization.
+                            </p>
+                        </div>
+
+                    </div>
+
+
+                    <div class="category">
+
+                        <span>05</span>
+
+                        <div>
+                            <strong>Accessibility</strong>
+                            <p>
+                                Contrast and accessible communication.
+                            </p>
+                        </div>
+
+                    </div>
+
+
+                    <div class="category">
+
+                        <span>06</span>
+
+                        <div>
+                            <strong>Required elements</strong>
+                            <p>
+                                Expected research-poster components.
+                            </p>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </aside>
+
+        </section>
+
+
+        <!-- =========================================================
+             REVIEW RESULTS
+        ========================================================== -->
+        <section
+            id="resultsSection"
+            class="results-section hidden"
+        >
+
+            <!-- RESULTS HEADER -->
+            <div class="results-header">
+
+                <div>
+
+                    <div class="eyebrow">
+                        PosterIQ review
+                    </div>
+
+                    <h2>
+                        Your poster feedback
+                    </h2>
+
+                    <p>
+                        Review the highest-priority recommendations first,
+                        then explore feedback by category.
+                    </p>
+
+                </div>
+
+
+                <button
+                    id="newReviewButton"
+                    class="secondary-button"
+                    type="button"
+                >
+                    Review another poster
+                </button>
+
+            </div>
+
+
+            <!-- =====================================================
+                 REVIEW SUMMARY
+            ====================================================== -->
+            <div class="summary-card">
+
+                <div class="summary-label">
+                    Overall assessment
+                </div>
+
+                <p
+                    id="reviewOverview"
+                    class="review-overview"
+                ></p>
+
+
+                <div class="summary-columns">
+
+                    <!-- STRENGTHS -->
+                    <div class="summary-column">
+
+                        <h3>
+                            Strengths
+                        </h3>
+
+                        <div
+                            id="reviewStrengths"
+                            class="summary-list"
+                        ></div>
+
+                    </div>
+
+
+                    <!-- PRIORITIES -->
+                    <div class="summary-column">
+
+                        <h3>
+                            Top priorities
+                        </h3>
+
+                        <div
+                            id="reviewPriorities"
+                            class="summary-list"
+                        ></div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- =====================================================
+                 CATEGORY FILTERS
+            ====================================================== -->
+            <div
+                id="categoryFilters"
+                class="category-filters"
+                aria-label="Review categories"
+            >
+
+                <button
+                    class="filter-button active"
+                    data-category="all"
+                    type="button"
+                >
+                    All feedback
+                </button>
+
+                <button
+                    class="filter-button"
+                    data-category="scientific_content"
+                    type="button"
+                >
+                    Scientific content
+                </button>
+
+                <button
+                    class="filter-button"
+                    data-category="statistics"
+                    type="button"
+                >
+                    Statistics
+                </button>
+
+                <button
+                    class="filter-button"
+                    data-category="visual_design"
+                    type="button"
+                >
+                    Visual design
+                </button>
+
+                <button
+                    class="filter-button"
+                    data-category="readability"
+                    type="button"
+                >
+                    Readability
+                </button>
+
+                <button
+                    class="filter-button"
+                    data-category="accessibility"
+                    type="button"
+                >
+                    Accessibility
+                </button>
+
+                <button
+                    class="filter-button"
+                    data-category="required_elements"
+                    type="button"
+                >
+                    Required elements
+                </button>
+
+            </div>
+
+
+            <!-- =====================================================
+                 DETAILED FINDINGS
+            ====================================================== -->
+            <div class="findings-heading">
+
+                <h3>
+                    Detailed feedback
+                </h3>
+
+                <span id="findingCount"></span>
+
+            </div>
+
+
+            <div
+                id="findingsList"
+                class="findings-list"
+            ></div>
+
+        </section>
+
+    </main>
+
+
+    <!-- =============================================================
+         FOOTER
+    ============================================================== -->
+    <footer>
+
+        <div class="footer-inner">
+
+            <strong>
+                PosterIQ
+            </strong>
+
+            <span>
+                AI-guided research poster feedback
+            </span>
+
+        </div>
+
+    </footer>
+
+
+    <script src="app.js"></script>
+
+</body>
+
+</html>
