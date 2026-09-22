@@ -1,4 +1,8 @@
-const API_BASE_URL = "http://localhost:7071/api";
+const API_BASE_URL =
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1"
+        ? "http://localhost:7071/api"
+        : "https://posteriq-api-dme7bwfug7azd9h3.westus3-01.azurewebsites.net/api";
 
 const dropZone = document.getElementById("dropZone");
 const fileInput = document.getElementById("fileInput");
