@@ -11,6 +11,10 @@ const fileName = document.getElementById("fileName");
 const fileSize = document.getElementById("fileSize");
 const removeFile = document.getElementById("removeFile");
 const reviewButton = document.getElementById("reviewButton");
+const posterPreview = document.getElementById("posterPreview");
+const posterCanvas = document.getElementById("posterCanvas");
+const posterHighlights = document.getElementById("posterHighlights");
+const posterLocationStatus = document.getElementById("posterLocationStatus");
 
 const analysisStatus = document.getElementById("analysisStatus");
 const statusTitle = document.getElementById("statusTitle");
@@ -30,6 +34,7 @@ const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
 let currentFile = null;
 let currentReview = null;
+let currentPosterId = null;
 
 
 /* =========================================================
@@ -258,6 +263,111 @@ async function reviewPoster(posterId) {
     return data;
 }
 
+/* =========================================================
+   POSTER PREVIEW
+========================================================= */
+
+function loadPosterPreview(posterId) {
+    currentPosterId = posterId;
+
+    posterHighlights.innerHTML = "";
+
+    posterLocationStatus.textContent =
+        "Poster preview";
+
+    posterPreview.src =
+        `${API_BASE_URL}/posters/${posterId}/preview`;
+}
+
+function showFindingLocation(finding, card) {
+    posterHighlights.innerHTML = "";
+
+    document
+        .querySelectorAll(".finding-card")
+        .forEach(item => item.classList.remove("finding-card-active"));
+
+    if (card) {
+        card.classList.add("finding-card-active");
+    }
+
+    const locations =
+        finding?.evidence?.locations || [];
+
+    const page =
+        currentReview?.poster_layout?.pages?.find(
+            item => item.page_number === 1
+        );
+
+    if (!locations.length || !page) {
+        posterLocationStatus.textContent =
+            "No specific poster location is available for this feedback.";
+        return;
+    }
+
+    locations
+        .filter(location => location.page_number === 1)
+        .forEach(location => {
+            const polygon = location.polygon || [];
+
+            if (polygon.length < 8) {
+                return;
+            }
+
+            const xValues = [];
+            const yValues = [];
+
+            for (let i = 0; i < polygon.length; i += 2) {
+                xValues.push(polygon[i]);
+                yValues.push(polygon[i + 1]);
+            }
+
+            const left =
+                (Math.min(...xValues) / page.width) * 100;
+
+            const top =
+                (Math.min(...yValues) / page.height) * 100;
+
+            const width =
+                ((Math.max(...xValues) - Math.min(...xValues)) /
+                    page.width) * 100;
+
+            const height =
+                ((Math.max(...yValues) - Math.min(...yValues)) /
+                    page.height) * 100;
+
+            const highlight =
+                document.createElement("div");
+
+            highlight.className =
+                "poster-highlight";
+
+            highlight.style.left = `${left}%`;
+            highlight.style.top = `${top}%`;
+            highlight.style.width = `${width}%`;
+            highlight.style.height = `${height}%`;
+
+            posterHighlights.appendChild(highlight);
+        });
+
+    posterLocationStatus.textContent =
+        finding.evidence.section
+            ? `Showing location: ${finding.evidence.section}`
+            : "Showing related location on poster";
+
+    posterPanelIntoView();
+}
+
+
+function posterPanelIntoView() {
+    if (window.innerWidth <= 850) {
+        document
+            .querySelector(".poster-panel")
+            ?.scrollIntoView({
+                behavior: "smooth",
+                block: "start"
+            });
+    }
+}
 
 /* =========================================================
    SUMMARY
@@ -340,6 +450,23 @@ function createFindingCard(finding) {
 
     card.className = "finding-card";
     card.dataset.category = finding.category || "";
+
+    card.tabIndex = 0;
+    card.setAttribute("role", "button");
+
+    card.addEventListener("click", () => {
+        showFindingLocation(finding, card);
+    });
+
+    card.addEventListener("keydown", (event) => {
+        if (
+            event.key === "Enter" ||
+            event.key === " "
+        ) {
+            event.preventDefault();
+            showFindingLocation(finding, card);
+        }
+    });
 
     const main = document.createElement("div");
     main.className = "finding-main";
@@ -642,8 +769,10 @@ reviewButton.addEventListener("click", async () => {
 
         const uploadResult = await uploadPoster();
 
-        setStatus(
-            "Analyzing your poster",
+		loadPosterPreview(uploadResult.poster_id);
+
+		setStatus(
+			"Analyzing your poster",
             "Reviewing the content, structure, and visual presentation."
         );
 

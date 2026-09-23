@@ -1001,3 +1001,301 @@ footer {
         flex-direction: column;
     }
 }
+
+/* =========================================================
+   REVIEW WORKSPACE V2
+========================================================= */
+
+.review-workspace {
+    display: grid;
+    grid-template-columns: minmax(420px, 0.9fr) minmax(520px, 1.1fr);
+    gap: 28px;
+    align-items: start;
+}
+
+
+/* POSTER PANEL */
+
+.poster-panel {
+    position: sticky;
+    top: 24px;
+
+    overflow: hidden;
+
+    background: var(--white);
+
+    border: 1px solid var(--border);
+    border-radius: 16px;
+
+    box-shadow: var(--shadow);
+}
+
+.poster-panel-header {
+    padding: 20px 22px 17px;
+
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+
+    border-bottom: 1px solid var(--border);
+}
+
+.panel-label {
+    margin-bottom: 4px;
+
+    color: var(--teal);
+
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.poster-panel-header h3 {
+    margin: 0;
+
+    color: var(--navy-dark);
+
+    font-size: 19px;
+    line-height: 1.2;
+}
+
+.preview-hint {
+    max-width: 175px;
+
+    color: var(--muted);
+
+    font-size: 11px;
+    line-height: 1.4;
+    text-align: right;
+}
+
+
+/* POSTER VIEWPORT */
+
+.poster-preview-viewport {
+    min-height: 390px;
+	max-height: 72vh;
+    padding: 20px;
+
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+
+    overflow: auto;
+
+    background: #edf1f3;
+}
+
+.poster-canvas {
+    position: relative;
+
+    width: 100%;
+    max-width: 560px;
+    margin: 0 auto;
+
+    line-height: 0;
+}
+
+.poster-preview-image {
+    display: block;
+
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    object-fit: contain;
+
+    background: white;
+
+    border: 1px solid #cfd9de;
+
+    box-shadow:
+        0 8px 24px rgba(16, 38, 58, 0.12);
+}
+
+.poster-highlights {
+    position: absolute;
+    inset: 0;
+
+    pointer-events: none;
+}
+
+
+/* LOCATION STATUS */
+
+.poster-location-status {
+    min-height: 42px;
+    padding: 12px 20px;
+
+    display: flex;
+    align-items: center;
+
+    background: #f8fafb;
+    color: var(--muted);
+
+    border-top: 1px solid var(--border);
+
+    font-size: 12px;
+}
+
+
+/* FEEDBACK PANEL */
+
+.feedback-panel {
+    min-width: 0;
+}
+
+.feedback-panel .summary-card {
+    box-shadow: none;
+}
+
+.feedback-panel .review-overview {
+    font-size: 17px;
+}
+
+.feedback-panel .summary-columns {
+    gap: 26px;
+}
+
+.feedback-panel .category-filters {
+    margin-top: 24px;
+    margin-bottom: 24px;
+}
+
+
+/* FINDINGS IN WORKSPACE */
+
+.feedback-panel .findings-heading {
+    margin-top: 4px;
+    margin-bottom: 14px;
+
+    align-items: flex-end;
+}
+
+.feedback-panel .findings-heading h3 {
+    margin: 2px 0 0;
+}
+
+.feedback-panel .finding-card {
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        transform 0.2s ease;
+}
+
+.feedback-panel .finding-card:hover {
+    border-color: #adc6cf;
+
+    box-shadow:
+        0 8px 24px rgba(24, 50, 77, 0.07);
+
+    transform: translateY(-1px);
+}
+
+
+/* =========================================================
+   REVIEW WORKSPACE RESPONSIVE
+========================================================= */
+
+@media (max-width: 1050px) {
+
+    .review-workspace {
+        grid-template-columns: minmax(340px, 0.8fr) minmax(440px, 1.2fr);
+        gap: 22px;
+    }
+
+    .poster-panel-header {
+        flex-direction: column;
+        gap: 7px;
+    }
+
+    .preview-hint {
+        max-width: none;
+        text-align: left;
+    }
+
+}
+
+
+@media (max-width: 850px) {
+
+    .review-workspace {
+        grid-template-columns: 1fr;
+    }
+
+    .poster-panel {
+        position: relative;
+        top: auto;
+    }
+
+    .poster-preview-viewport {
+        min-height: 0;
+    }
+
+}
+
+
+@media (max-width: 600px) {
+
+    .poster-preview-viewport {
+        padding: 12px;
+    }
+
+    .poster-panel-header {
+        padding: 17px;
+    }
+
+    .poster-location-status {
+        padding: 11px 17px;
+    }
+
+}
+
+/* =========================================================
+   LOCATION-AWARE FEEDBACK
+========================================================= */
+
+.poster-highlight {
+    position: absolute;
+
+    background: rgba(0, 137, 150, 0.18);
+    border: 3px solid var(--teal);
+    border-radius: 4px;
+
+    box-shadow:
+        0 0 0 2px rgba(255, 255, 255, 0.8),
+        0 4px 14px rgba(0, 77, 86, 0.2);
+
+    animation: poster-highlight-in 0.25s ease-out;
+}
+
+@keyframes poster-highlight-in {
+    from {
+        opacity: 0;
+        transform: scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+
+.finding-card[role="button"] {
+    cursor: pointer;
+}
+
+.finding-card[role="button"]:focus-visible {
+    outline: 3px solid rgba(0, 137, 150, 0.25);
+    outline-offset: 3px;
+}
+
+.finding-card-active {
+    border-color: var(--teal) !important;
+
+    box-shadow:
+        0 0 0 2px rgba(0, 137, 150, 0.12),
+        0 10px 28px rgba(24, 50, 77, 0.09) !important;
+}
