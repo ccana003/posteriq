@@ -514,7 +514,9 @@ def validate_review_guidance(review, guidance_records):
                 guidance["source"] = record.get("source")
                 guidance["section"] = record.get("source_section")
                 guidance["reference_id"] = record.get("reference_id")
-                guidance["text"] = record.get("guidance")
+                guidance["text"] = (
+                    record.get("guidance", {}).get("text")
+                )
 
             else:
                 # Never allow an invented or unavailable citation to appear
