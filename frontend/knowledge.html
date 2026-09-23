@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Knowledge Manager | PosterIQ</title>
+
+    <link rel="stylesheet" href="styles.css?v=6">
+</head>
+
+<body>
+
+    <div class="top-accent"></div>
+
+    <header class="knowledge-site-header">
+		<div class="knowledge-site-brand">
+			<img
+				src="assets/ctsi-logo.jpg"
+				alt="Miami Clinical and Translational Science Institute"
+				class="knowledge-site-logo"
+			>
+
+			<div class="knowledge-site-title">
+				<strong>PosterIQ</strong>
+				<span>Knowledge Manager</span>
+			</div>
+		</div>
+
+		<a href="index.html" class="knowledge-back-link">
+			← Poster Review
+		</a>
+	</header>
+
+    <main class="knowledge-manager">
+
+        <section class="knowledge-header">
+            <div>
+                <span class="section-eyebrow">ADMINISTRATION</span>
+
+                <h1>Knowledge Manager</h1>
+
+                <p>
+                    Manage the curated standards and guidance
+                    used by PosterIQ during poster review.
+                </p>
+            </div>
+
+            <button
+                type="button"
+                class="primary-button"
+                id="addGuidanceButton"
+            >
+                + Add guidance
+            </button>
+        </section>
+
+
+        <section class="knowledge-summary">
+
+            <div class="knowledge-stat">
+                <strong id="guidanceCount">—</strong>
+                <span>Guidance records</span>
+            </div>
+
+            <div class="knowledge-stat">
+                <strong id="reviewAreaCount">—</strong>
+                <span>Review areas</span>
+            </div>
+
+            <div class="knowledge-stat">
+                <strong id="sourceCount">—</strong>
+                <span>Sources</span>
+            </div>
+
+        </section>
+
+
+        <section class="knowledge-controls">
+
+            <input
+                type="search"
+                id="knowledgeSearch"
+                placeholder="Search guidance..."
+                aria-label="Search guidance"
+            >
+
+            <select
+                id="reviewAreaFilter"
+                aria-label="Filter by review area"
+            >
+                <option value="">All review areas</option>
+            </select>
+
+        </section>
+
+
+        <section
+            id="knowledgeRecords"
+            class="knowledge-records"
+        >
+
+            <div class="knowledge-empty">
+                Loading PosterIQ knowledge…
+            </div>
+
+        </section>
+
+    </main>
+	
+		<div
+		id="guidanceModal"
+		class="knowledge-modal"
+		hidden
+	>
+		<div class="knowledge-modal-backdrop"></div>
+
+		<div
+			class="knowledge-modal-panel"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="guidanceModalTitle"
+		>
+			<div class="knowledge-modal-header">
+				<div>
+					<span class="section-eyebrow">CURATED KNOWLEDGE</span>
+					<h2 id="guidanceModalTitle">Add guidance</h2>
+				</div>
+
+				<button
+					type="button"
+					id="closeGuidanceModal"
+					class="knowledge-modal-close"
+					aria-label="Close"
+				>
+					×
+				</button>
+			</div>
+
+			<form id="guidanceForm">
+
+				<div class="knowledge-form-grid">
+
+					<div class="knowledge-form-field">
+						<label for="guidanceCategory">
+							Review area
+						</label>
+
+						<select id="guidanceCategory" required>
+							<option value="">Select a review area</option>
+							<option value="scientific_content">Scientific Content</option>
+							<option value="statistics">Statistics</option>
+							<option value="visual_design">Visual Design</option>
+							<option value="readability">Readability</option>
+							<option value="accessibility">Accessibility</option>
+							<option value="required_elements">Required Elements</option>
+						</select>
+					</div>
+
+					<div class="knowledge-form-field">
+						<label for="guidanceReferenceId">
+							Reference ID
+						</label>
+
+						<input
+							type="text"
+							id="guidanceReferenceId"
+							placeholder="e.g. CTSI-DESIGN-006"
+							required
+						>
+					</div>
+
+				</div>
+
+				<div class="knowledge-form-field">
+					<label for="guidanceTitle">
+						Evaluation criterion
+					</label>
+
+					<input
+						type="text"
+						id="guidanceTitle"
+						placeholder="Short descriptive title"
+						required
+					>
+				</div>
+
+				<div class="knowledge-form-field">
+					<label for="guidanceText">
+						Supporting standard
+					</label>
+
+					<textarea
+						id="guidanceText"
+						rows="4"
+						placeholder="Enter the curated guidance or standard."
+						required
+					></textarea>
+				</div>
+
+				<div class="knowledge-form-grid">
+
+					<div class="knowledge-form-field">
+						<label for="guidanceSource">
+							Source document
+						</label>
+
+						<select id="guidanceSource" required>
+							<option value="">
+								Select a source document
+							</option>
+						</select>
+					</div>
+
+					<div class="knowledge-form-field">
+						<label for="guidanceSection">
+							Source section
+						</label>
+
+						<input
+							type="text"
+							id="guidanceSection"
+							placeholder="Section or heading"
+							required
+						>
+					</div>
+					
+					<div class="knowledge-form-field">
+						<label for="guidanceSourcePage">
+							Source page
+						</label>
+
+						<input
+							type="number"
+							id="guidanceSourcePage"
+							min="1"
+							placeholder="e.g. 4"
+						>
+					</div>
+
+				</div>
+				
+				<div class="knowledge-form-field">
+					<label for="guidanceAppliesTo">
+						Applies to
+					</label>
+
+					<input
+						type="text"
+						id="guidanceAppliesTo"
+						placeholder="e.g. body_text, headings, layout"
+					>
+
+					<div class="knowledge-field-help">
+						Poster elements this guidance applies to. Separate multiple values with commas.
+					</div>
+				</div>
+				
+				<div class="knowledge-form-field">
+					<label for="guidanceKeywords">
+						Keywords
+					</label>
+
+					<input
+						type="text"
+						id="guidanceKeywords"
+						placeholder="Separate keywords with commas"
+					>
+				</div>
+
+				<div class="knowledge-form-actions">
+					<button
+						type="button"
+						id="cancelGuidanceButton"
+						class="knowledge-secondary-button"
+					>
+						Cancel
+					</button>
+
+					<button
+						type="submit"
+						class="primary-button"
+					>
+						Save guidance
+					</button>
+				</div>
+
+			</form>
+		</div>
+	</div>
+	
+    <script src="knowledge.js?v=6"></script>
+
+</body>
+</html>

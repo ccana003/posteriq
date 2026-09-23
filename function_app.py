@@ -2,6 +2,7 @@ import json
 import os
 import uuid
 import base64
+from pathlib import Path
 
 import azure.functions as func
 import pymupdf
@@ -9,11 +10,15 @@ from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.core.credentials import AzureKeyCredential
 from azure.storage.blob import BlobServiceClient, ContentSettings
 from openai import AzureOpenAI
-from knowledge_base import search_guidance
+from knowledge_base import (
+    load_guidance_records,
+    search_guidance
+)
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
 MAX_FILE_SIZE = 25 * 1024 * 1024  # 25 MB
+KNOWLEDGE_ROOT = Path(__file__).parent / "knowledge"
 
 
 def get_blob_service_client():
@@ -582,7 +587,564 @@ def add_finding_locations(review, poster_structure):
     }
 
     return review
- 
+# ============================================================
+# KNOWLEDGE MANAGER
+# ============================================================
+
+@app.route(
+    route="knowledge",
+    methods=["GET"],
+    auth_level=func.AuthLevel.ANONYMOUS
+)
+def get_knowledge(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    Return curated PosterIQ knowledge records for the
+    Knowledge Manager.
+
+    Read-only MVP endpoint.
+    """
+
+    try:
+        records = load_guidance_records()
+        
+        source_documents = {}
+        public_records = []
+
+        for record in records:
+            guidance = record.get("guidance", {})
+            source = record.get("source")
+
+            if source and source not in source_documents:
+                source_documents[source] = {
+                    "title": source,
+                    "organization": record.get("source_organization"),
+                    "date": record.get("source_date"),
+                    "curation_status": record.get("curation_status"),
+                    "knowledge_file": record.get("_knowledge_file")
+                }
+            public_records.append({
+                "reference_id": record.get("reference_id"),
+                "category": record.get("category"),
+                "knowledge_file": record.get("_knowledge_file"),
+                "source_page": record.get("source_page"),
+                "source_section": record.get("source_section"),
+                "source": record.get("source"),
+                "source_organization": record.get("source_organization"),
+                "source_date": record.get("source_date"),
+                "curation_status": record.get("curation_status"),
+                "title": guidance.get("title"),
+                "text": guidance.get("text"),
+                "applies_to": record.get("applies_to", []),
+                "keywords": record.get("keywords", [])
+            })
+
+        return func.HttpResponse(
+            json.dumps({
+                "count": len(public_records),
+                "sources": list(source_documents.values()),
+                "records": public_records
+            }),
+            mimetype="application/json",
+            status_code=200
+        )
+
+    except Exception as exc:
+        print(
+            "PosterIQ knowledge manager error: "
+            f"{type(exc).__name__}: {exc}"
+        )
+
+        return func.HttpResponse(
+            json.dumps({
+                "error": "Unable to load PosterIQ knowledge."
+            }),
+            mimetype="application/json",
+            status_code=500
+        )
+
+
+@app.route(
+    route="knowledge",
+    methods=["POST"],
+    auth_level=func.AuthLevel.ANONYMOUS
+)
+def create_knowledge(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    Add a curated guidance record to a local PosterIQ
+    knowledge document.
+    """
+
+    try:
+        payload = req.get_json()
+
+        required_fields = [
+            "knowledge_file",
+            "reference_id",
+            "category",
+            "source_section",
+            "title",
+            "text"
+        ]
+
+        missing_fields = [
+            field
+            for field in required_fields
+            if not payload.get(field)
+        ]
+
+        if missing_fields:
+            return func.HttpResponse(
+                json.dumps({
+                    "error": "Missing required fields.",
+                    "fields": missing_fields
+                }),
+                mimetype="application/json",
+                status_code=400
+            )
+
+        knowledge_file = payload["knowledge_file"]
+
+        records = load_guidance_records()
+
+        valid_files = {
+            record.get("_knowledge_file")
+            for record in records
+            if record.get("_knowledge_file")
+        }
+
+        if knowledge_file not in valid_files:
+            return func.HttpResponse(
+                json.dumps({
+                    "error": "Unknown knowledge document."
+                }),
+                mimetype="application/json",
+                status_code=400
+            )
+
+        reference_id = payload["reference_id"].strip()
+
+        existing_ids = {
+            str(record.get("reference_id", "")).strip().lower()
+            for record in records
+        }
+
+        if reference_id.lower() in existing_ids:
+            return func.HttpResponse(
+                json.dumps({
+                    "error": "Reference ID already exists."
+                }),
+                mimetype="application/json",
+                status_code=409
+            )
+
+        # Resolve the selected document strictly inside
+        # PosterIQ's local knowledge directory.
+        knowledge_path = (
+            KNOWLEDGE_ROOT / Path(knowledge_file)
+        ).resolve()
+
+        knowledge_root = KNOWLEDGE_ROOT.resolve()
+
+        if knowledge_root not in knowledge_path.parents:
+            return func.HttpResponse(
+                json.dumps({
+                    "error": "Invalid knowledge document path."
+                }),
+                mimetype="application/json",
+                status_code=400
+            )
+
+        if not knowledge_path.is_file():
+            return func.HttpResponse(
+                json.dumps({
+                    "error": "Knowledge document was not found locally."
+                }),
+                mimetype="application/json",
+                status_code=404
+            )
+
+        with knowledge_path.open(
+            "r",
+            encoding="utf-8"
+        ) as file:
+            document = json.load(file)
+
+        guidance_records = document.get("guidance_records")
+
+        if not isinstance(guidance_records, list):
+            return func.HttpResponse(
+                json.dumps({
+                    "error":
+                        "Knowledge document has an invalid structure."
+                }),
+                mimetype="application/json",
+                status_code=500
+            )
+
+        new_record = {
+            "reference_id": reference_id,
+            "category": payload["category"].strip(),
+            "source_section": payload["source_section"].strip(),
+            "guidance": {
+                "title": payload["title"].strip(),
+                "text": payload["text"].strip()
+            },
+            "applies_to": payload.get("applies_to", []),
+            "keywords": payload.get("keywords", [])
+        }
+
+        source_page = payload.get("source_page")
+
+        if source_page is not None:
+            new_record["source_page"] = source_page
+
+        guidance_records.append(new_record)
+
+        with knowledge_path.open(
+            "w",
+            encoding="utf-8"
+        ) as file:
+            json.dump(
+                document,
+                file,
+                indent=2,
+                ensure_ascii=False
+            )
+            file.write("\n")
+
+        return func.HttpResponse(
+            json.dumps({
+                "status": "created",
+                "message": "Guidance was added successfully.",
+                "record": new_record
+            }),
+            mimetype="application/json",
+            status_code=201
+        )
+
+    except ValueError:
+        return func.HttpResponse(
+            json.dumps({
+                "error": "Invalid JSON request."
+            }),
+            mimetype="application/json",
+            status_code=400
+        )
+
+    except Exception as exc:
+        print(
+            "PosterIQ knowledge create error: "
+            f"{type(exc).__name__}: {exc}"
+        )
+
+        return func.HttpResponse(
+            json.dumps({
+                "error": "Unable to save guidance."
+            }),
+            mimetype="application/json",
+            status_code=500
+        )
+
+@app.route(
+    route="knowledge/{reference_id}",
+    methods=["PUT"]
+)
+def update_knowledge(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    Update an existing curated guidance record
+    in a local PosterIQ knowledge document.
+    """
+
+    reference_id = req.route_params.get(
+        "reference_id",
+        ""
+    ).strip()
+
+    try:
+        payload = req.get_json()
+    except ValueError:
+        return func.HttpResponse(
+            json.dumps({
+                "error": "Request body must be valid JSON."
+            }),
+            status_code=400,
+            mimetype="application/json"
+        )
+
+    required_fields = [
+        "knowledge_file",
+        "category",
+        "source_section",
+        "title",
+        "text"
+    ]
+
+    missing_fields = [
+        field
+        for field in required_fields
+        if not payload.get(field)
+    ]
+
+    if missing_fields:
+        return func.HttpResponse(
+            json.dumps({
+                "error":
+                    "Missing required fields: "
+                    + ", ".join(missing_fields)
+            }),
+            status_code=400,
+            mimetype="application/json"
+        )
+
+    try:
+        knowledge_file = payload["knowledge_file"]
+
+        knowledge_path = (
+            KNOWLEDGE_ROOT / Path(knowledge_file)
+        ).resolve()
+
+        knowledge_root = KNOWLEDGE_ROOT.resolve()
+
+        if knowledge_root not in knowledge_path.parents:
+            return func.HttpResponse(
+                json.dumps({
+                    "error": "Invalid knowledge document path."
+                }),
+                status_code=400,
+                mimetype="application/json"
+            )
+
+        if not knowledge_path.exists():
+            return func.HttpResponse(
+                json.dumps({
+                    "error": "Knowledge document was not found."
+                }),
+                status_code=404,
+                mimetype="application/json"
+            )
+
+        with open(
+            knowledge_path,
+            "r",
+            encoding="utf-8"
+        ) as file:
+            data = json.load(file)
+
+        guidance_records = data.get("guidance_records")
+
+        if not isinstance(guidance_records, list):
+            return func.HttpResponse(
+                json.dumps({
+                    "error":
+                        "Knowledge document does not contain "
+                        "a valid guidance_records list."
+                }),
+                status_code=400,
+                mimetype="application/json"
+            )
+
+        target_record = next(
+            (
+                record
+                for record in guidance_records
+                if record.get("reference_id", "").lower()
+                == reference_id.lower()
+            ),
+            None
+        )
+
+        if target_record is None:
+            return func.HttpResponse(
+                json.dumps({
+                    "error": "Guidance record was not found."
+                }),
+                status_code=404,
+                mimetype="application/json"
+            )
+
+        target_record["category"] = payload["category"].strip()
+        target_record["source_section"] = (
+            payload["source_section"].strip()
+        )
+
+        target_record["guidance"] = {
+            "title": payload["title"].strip(),
+            "text": payload["text"].strip()
+        }
+
+        target_record["applies_to"] = payload.get(
+            "applies_to",
+            []
+        )
+
+        target_record["keywords"] = payload.get(
+            "keywords",
+            []
+        )
+
+        source_page = payload.get("source_page")
+
+        if source_page is not None:
+            target_record["source_page"] = source_page
+        else:
+            target_record.pop("source_page", None)
+
+        with open(
+            knowledge_path,
+            "w",
+            encoding="utf-8"
+        ) as file:
+            json.dump(
+                data,
+                file,
+                indent=2,
+                ensure_ascii=False
+            )
+            file.write("\n")
+
+        return func.HttpResponse(
+            json.dumps({
+                "status": "updated",
+                "message": "Guidance was updated successfully."
+            }),
+            status_code=200,
+            mimetype="application/json"
+        )
+
+    except Exception as exc:
+        print(f"Knowledge update failed: {exc}")
+
+        return func.HttpResponse(
+            json.dumps({
+                "error": "Unable to update guidance."
+            }),
+            status_code=500,
+            mimetype="application/json"
+        )
+
+@app.route(
+    route="knowledge/{reference_id}",
+    methods=["DELETE"]
+)
+def delete_knowledge(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    Delete an existing curated guidance record
+    from a local PosterIQ knowledge document.
+    """
+
+    reference_id = req.route_params.get(
+        "reference_id",
+        ""
+    ).strip()
+
+    knowledge_file = req.params.get(
+        "knowledge_file",
+        ""
+    ).strip()
+
+    if not reference_id or not knowledge_file:
+        return func.HttpResponse(
+            json.dumps({
+                "error": "Reference ID and knowledge file are required."
+            }),
+            status_code=400,
+            mimetype="application/json"
+        )
+
+    try:
+        knowledge_path = (
+            KNOWLEDGE_ROOT / Path(knowledge_file)
+        ).resolve()
+
+        knowledge_root = KNOWLEDGE_ROOT.resolve()
+
+        if knowledge_root not in knowledge_path.parents:
+            return func.HttpResponse(
+                json.dumps({
+                    "error": "Invalid knowledge document path."
+                }),
+                status_code=400,
+                mimetype="application/json"
+            )
+
+        if not knowledge_path.exists():
+            return func.HttpResponse(
+                json.dumps({
+                    "error": "Knowledge document was not found."
+                }),
+                status_code=404,
+                mimetype="application/json"
+            )
+
+        with open(
+            knowledge_path,
+            "r",
+            encoding="utf-8"
+        ) as file:
+            data = json.load(file)
+
+        guidance_records = data.get("guidance_records")
+
+        if not isinstance(guidance_records, list):
+            return func.HttpResponse(
+                json.dumps({
+                    "error": "Invalid guidance_records list."
+                }),
+                status_code=400,
+                mimetype="application/json"
+            )
+
+        original_count = len(guidance_records)
+
+        data["guidance_records"] = [
+            record
+            for record in guidance_records
+            if record.get("reference_id", "").lower()
+            != reference_id.lower()
+        ]
+
+        if len(data["guidance_records"]) == original_count:
+            return func.HttpResponse(
+                json.dumps({
+                    "error": "Guidance record was not found."
+                }),
+                status_code=404,
+                mimetype="application/json"
+            )
+
+        with open(
+            knowledge_path,
+            "w",
+            encoding="utf-8"
+        ) as file:
+            json.dump(
+                data,
+                file,
+                indent=2,
+                ensure_ascii=False
+            )
+            file.write("\n")
+
+        return func.HttpResponse(
+            json.dumps({
+                "status": "deleted",
+                "message": "Guidance was deleted successfully."
+            }),
+            status_code=200,
+            mimetype="application/json"
+        )
+
+    except Exception as exc:
+        print(f"Knowledge delete failed: {exc}")
+
+        return func.HttpResponse(
+            json.dumps({
+                "error": "Unable to delete guidance."
+            }),
+            status_code=500,
+            mimetype="application/json"
+        )
+        
 @app.route(route="health", methods=["GET"])
 
 def health(req: func.HttpRequest) -> func.HttpResponse:

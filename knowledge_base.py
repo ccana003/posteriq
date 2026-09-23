@@ -72,14 +72,22 @@ def load_local_guidance_records():
     ):
         for filename in files:
 
-            if not filename.lower().endswith(
+            filename_lower = filename.lower()
+
+            if not filename_lower.endswith(
                 ".json"
             ):
                 continue
 
-            # Template files are documentation,
-            # not actual guidance.
-            if "template" in filename.lower():
+            # Template and backup files are not
+            # active PosterIQ guidance documents.
+            if (
+                "template" in filename_lower
+                or "backup" in filename_lower
+                or filename_lower.endswith(".bak.json")
+                or filename_lower.endswith(".old.json")
+                or filename_lower.endswith(".test.json")
+            ):
                 continue
 
             path = os.path.join(
@@ -146,7 +154,15 @@ def load_blob_guidance_records():
         ):
             continue
 
-        if "template" in blob_name.lower():
+        blob_name_lower = blob_name.lower()
+
+        if (
+            "template" in blob_name_lower
+            or "backup" in blob_name_lower
+            or blob_name_lower.endswith(".bak.json")
+            or blob_name_lower.endswith(".old.json")
+            or blob_name_lower.endswith(".test.json")
+        ):
             continue
 
         blob_client = (
