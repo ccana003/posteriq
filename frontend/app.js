@@ -22,6 +22,8 @@ const statusMessage = document.getElementById("statusMessage");
 const errorMessage = document.getElementById("errorMessage");
 
 const resultsSection = document.getElementById("resultsSection");
+const resultsTitle = document.getElementById("resultsTitle");
+const posterPanelTitle = document.getElementById("posterPanelTitle");
 const reviewOverview = document.getElementById("reviewOverview");
 const reviewStrengths = document.getElementById("reviewStrengths");
 const reviewPriorities = document.getElementById("reviewPriorities");
@@ -29,6 +31,8 @@ const findingsList = document.getElementById("findingsList");
 const findingCount = document.getElementById("findingCount");
 const categoryFilters = document.getElementById("categoryFilters");
 const newReviewButton = document.getElementById("newReviewButton");
+const sampleReviewButton =
+    document.getElementById("sampleReviewButton");
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
@@ -740,6 +744,12 @@ newReviewButton.addEventListener("click", () => {
     resetFile();
     resetReview();
 
+    resultsTitle.textContent =
+        "Your poster feedback";
+
+    posterPanelTitle.textContent =
+        "Your poster";
+
     window.scrollTo({
         top: 0,
         behavior: "smooth"
@@ -757,9 +767,15 @@ reviewButton.addEventListener("click", async () => {
     }
 
     clearError();
-    resetReview();
+	resetReview();
 
-    reviewButton.disabled = true;
+	resultsTitle.textContent =
+		"Your poster feedback";
+
+	posterPanelTitle.textContent =
+		"Your poster";
+
+	reviewButton.disabled = true;
 
     try {
         setStatus(
@@ -801,3 +817,55 @@ reviewButton.addEventListener("click", async () => {
     }
 });
 
+/* =========================================================
+   SAMPLE REVIEW
+========================================================= */
+
+sampleReviewButton.addEventListener("click", async () => {
+    clearError();
+    clearStatus();
+    resetReview();
+
+    try {
+        sampleReviewButton.disabled = true;
+
+        const response = await fetch(
+            "samples/sample-review.json"
+        );
+
+        if (!response.ok) {
+            throw new Error(
+                "PosterIQ could not load the sample review."
+            );
+        }
+
+        const sampleReview = await response.json();
+
+        currentPosterId = null;
+
+		resultsTitle.textContent =
+			"Sample poster review";
+
+		posterPanelTitle.textContent =
+			"Sample poster";
+
+		posterHighlights.innerHTML = "";
+
+		posterLocationStatus.textContent =
+			"Sample poster";
+
+        posterPreview.src =
+            "samples/sample-poster.png";
+
+        renderReview(sampleReview);
+
+    } catch (error) {
+        showError(
+            error.message ||
+            "PosterIQ could not load the sample review."
+        );
+
+    } finally {
+        sampleReviewButton.disabled = false;
+    }
+});

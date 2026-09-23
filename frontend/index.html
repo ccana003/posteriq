@@ -152,16 +152,43 @@
 
                 <!-- REVIEW BUTTON -->
                 <button
-                    id="reviewButton"
-                    class="review-button"
-                    type="button"
-                    disabled
-                >
-                    Review my poster
-                </button>
+					id="reviewButton"
+					class="review-button"
+					type="button"
+					disabled
+				>
+					Review my poster
+				</button>
 
 
-                <!-- ANALYSIS STATUS -->
+				<!-- SAMPLE REVIEW -->
+				<div class="sample-review-option">
+
+					<div class="sample-divider">
+						<span>or</span>
+					</div>
+
+					<button
+						id="sampleReviewButton"
+						class="sample-review-button"
+						type="button"
+					>
+						<span class="sample-review-icon" aria-hidden="true">
+							↗
+						</span>
+
+						<span class="sample-review-text">
+							<strong>Explore a sample review</strong>
+							<small>
+								See PosterIQ in action without uploading a poster
+							</small>
+						</span>
+					</button>
+
+				</div>
+
+
+				<!-- ANALYSIS STATUS -->
                 <div
                     id="analysisStatus"
                     class="analysis-status hidden"
@@ -322,9 +349,9 @@
                         PosterIQ review
                     </div>
 
-                    <h2>
-                        Your poster feedback
-                    </h2>
+                    <h2 id="resultsTitle">
+						Your poster feedback
+					</h2>
 
                     <p>
                         Review the highest-priority recommendations first,
@@ -357,7 +384,7 @@
         <div class="poster-panel-header">
             <div>
                 <div class="panel-label">Poster preview</div>
-                <h3>Your poster</h3>
+                <h3 id="posterPanelTitle">Your poster</h3>
             </div>
 
             <span class="preview-hint">
