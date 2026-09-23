@@ -819,7 +819,99 @@ def ai_test(req: func.HttpRequest) -> func.HttpResponse:
             mimetype="application/json",
             status_code=500
         )
-        
+
+
+# ============================================================
+# POSTER PREVIEW
+# ============================================================
+
+@app.route(
+    route="posters/{poster_id}/preview",
+    methods=["GET"],
+    auth_level=func.AuthLevel.ANONYMOUS
+)
+def preview_poster(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    Return the rendered PNG preview for an uploaded poster.
+
+    The poster remains stored in the private Azure Blob container.
+    The frontend retrieves the image through this API endpoint.
+    """
+
+    poster_id = req.route_params.get("poster_id")
+
+    if not poster_id:
+        return func.HttpResponse(
+            json.dumps({
+                "error": "Poster ID is required."
+            }),
+            mimetype="application/json",
+            status_code=400
+        )
+
+    try:
+        uuid.UUID(poster_id)
+    except ValueError:
+        return func.HttpResponse(
+            json.dumps({
+                "error": "Invalid poster ID."
+            }),
+            mimetype="application/json",
+            status_code=400
+        )
+
+    try:
+        container_name = os.environ.get(
+            "POSTERIQ_POSTERS_CONTAINER",
+            "posters"
+        )
+
+        blob_service = get_blob_service_client()
+
+        image_blob = blob_service.get_blob_client(
+            container=container_name,
+            blob=f"{poster_id}.png"
+        )
+
+        if not image_blob.exists():
+            return func.HttpResponse(
+                json.dumps({
+                    "error": "Rendered poster image was not found."
+                }),
+                mimetype="application/json",
+                status_code=404
+            )
+
+        poster_image_bytes = image_blob.download_blob().readall()
+
+        return func.HttpResponse(
+            body=poster_image_bytes,
+            mimetype="image/png",
+            status_code=200,
+            headers={
+                "Cache-Control": "private, max-age=3600"
+            }
+        )
+
+    except Exception as exc:
+        print(
+            f"Poster preview failed for {poster_id}: "
+            f"{type(exc).__name__}: {exc}"
+        )
+
+        return func.HttpResponse(
+            json.dumps({
+                "error": "PosterIQ could not load the poster preview."
+            }),
+            mimetype="application/json",
+            status_code=500
+        )
+
+
+# ============================================================
+# POSTER REVIEW
+# ============================================================
+
 @app.route(
     route="posters/{poster_id}/review",
     methods=["POST"]
@@ -931,4 +1023,4 @@ def review_poster(req: func.HttpRequest) -> func.HttpResponse:
             }),
             mimetype="application/json",
             status_code=500
-        )        
+        )     
