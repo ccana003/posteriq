@@ -567,75 +567,114 @@ function createFindingCard(finding) {
 
     /* GUIDANCE / PROVENANCE */
 
-    const guidance = finding.guidance || {};
+	const guidance = finding.guidance || {};
 
-    const sourceArea = document.createElement("div");
-    sourceArea.className = "guidance-source";
+	const sourceArea = document.createElement("div");
+	sourceArea.className = "guidance-source";
 
-    const sourceText = document.createElement("div");
+	const sourceText = document.createElement("div");
+	sourceText.className = "guidance-content";
 
-    const sourceTitle = document.createElement("strong");
-    const sourceDetail = document.createElement("span");
+	const sourceTitle = document.createElement("strong");
 
-    const guidanceType =
-        guidance.type === "curated_standard"
-            ? "curated_standard"
-            : "general_suggestion";
-
-    if (guidanceType === "curated_standard") {
-        sourceTitle.textContent =
-            "Supported by curated guidance";
-
-        const details = [];
-
-        if (guidance.source) {
-            details.push(guidance.source);
-        }
-
-        if (guidance.section) {
-            details.push(guidance.section);
-        }
-
-        if (guidance.reference_id) {
-            details.push(guidance.reference_id);
-        }
-
-        sourceDetail.textContent =
-            details.join(" • ");
-    } else {
-        sourceTitle.textContent =
-            "General suggestion";
-
-        sourceDetail.textContent =
-            "This recommendation is not tied to a supplied curated standard.";
-    }
-
-    sourceText.appendChild(sourceTitle);
-    sourceText.appendChild(sourceDetail);
+	const guidanceType =
+		guidance.type === "curated_standard"
+			? "curated_standard"
+			: "general_suggestion";
 
 
-    const typeBadge = document.createElement("span");
+	if (guidanceType === "curated_standard") {
 
-    typeBadge.className =
-        guidanceType === "curated_standard"
-            ? "guidance-type"
-            : "guidance-type general";
+		sourceTitle.textContent =
+			"Supported by curated guidance";
 
-    typeBadge.textContent =
-        guidanceType === "curated_standard"
-            ? "Curated standard"
-            : "General suggestion";
-
-    sourceArea.appendChild(sourceText);
-    sourceArea.appendChild(typeBadge);
-
-    card.appendChild(sourceArea);
-
-    return card;
-}
+		sourceText.appendChild(sourceTitle);
 
 
-function renderFindings(findings, category = "all") {
+		/* SOURCE + SECTION */
+
+		const sourceMeta = document.createElement("div");
+		sourceMeta.className = "guidance-meta";
+
+		const metaParts = [];
+
+		if (guidance.source) {
+			metaParts.push(guidance.source);
+		}
+
+		if (guidance.section) {
+			metaParts.push(guidance.section);
+		}
+
+		sourceMeta.textContent = metaParts.join(" • ");
+
+		if (metaParts.length) {
+			sourceText.appendChild(sourceMeta);
+		}
+
+
+		/* VERIFIED GUIDANCE TEXT */
+
+		if (guidance.text) {
+
+			const guidanceText = document.createElement("p");
+			guidanceText.className = "guidance-text";
+			guidanceText.textContent = guidance.text;
+
+			sourceText.appendChild(guidanceText);
+		}
+
+
+		/* REFERENCE ID */
+
+		if (guidance.reference_id) {
+
+			const reference = document.createElement("div");
+			reference.className = "guidance-reference";
+			reference.textContent = guidance.reference_id;
+
+			sourceText.appendChild(reference);
+		}
+
+	} else {
+
+		sourceTitle.textContent =
+			"General suggestion";
+
+		sourceText.appendChild(sourceTitle);
+
+		const generalText = document.createElement("p");
+		generalText.className = "guidance-text general-guidance-text";
+
+		generalText.textContent =
+			"This recommendation is based on general poster-review principles and is not tied to a curated PosterIQ standard.";
+
+		sourceText.appendChild(generalText);
+	}
+
+
+	const typeBadge = document.createElement("span");
+
+	typeBadge.className =
+		guidanceType === "curated_standard"
+			? "guidance-type"
+			: "guidance-type general";
+
+	typeBadge.textContent =
+		guidanceType === "curated_standard"
+			? "Curated standard"
+			: "General suggestion";
+
+	sourceArea.appendChild(sourceText);
+	sourceArea.appendChild(typeBadge);
+
+	card.appendChild(sourceArea);
+
+	return card;
+	}
+
+
+	function renderFindings(findings, category = "all") {
     findingsList.innerHTML = "";
 
     const filteredFindings =

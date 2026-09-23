@@ -514,6 +514,7 @@ def validate_review_guidance(review, guidance_records):
                 guidance["source"] = record.get("source")
                 guidance["section"] = record.get("source_section")
                 guidance["reference_id"] = record.get("reference_id")
+                guidance["text"] = record.get("guidance")
 
             else:
                 # Never allow an invented or unavailable citation to appear
@@ -522,6 +523,7 @@ def validate_review_guidance(review, guidance_records):
                 guidance["source"] = None
                 guidance["section"] = None
                 guidance["reference_id"] = None
+                guidance["text"] = None
 
         else:
             # General suggestions must never carry institutional provenance.
@@ -529,6 +531,7 @@ def validate_review_guidance(review, guidance_records):
             guidance["source"] = None
             guidance["section"] = None
             guidance["reference_id"] = None
+            guidance["text"] = None
 
     return review
 def add_finding_locations(review, poster_structure):

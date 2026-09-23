@@ -2256,3 +2256,56 @@ body {
         0 0 0 3px rgba(0, 137, 150, 0.10),
         0 14px 32px rgba(24, 50, 77, 0.08) !important;
 }
+
+/* =========================================================
+   RICH PROVENANCE
+========================================================= */
+
+.guidance-content {
+    min-width: 0;
+}
+
+.guidance-content > strong {
+    display: block;
+
+    color: #17364e;
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+
+.guidance-meta {
+    margin-top: 5px;
+
+    color: #60788c;
+    font-size: 0.78rem;
+    line-height: 1.45;
+}
+
+.guidance-text {
+    max-width: 720px;
+    margin: 12px 0 0;
+
+    color: #304d63;
+    font-size: 0.84rem;
+    line-height: 1.55;
+}
+
+.guidance-reference {
+    display: inline-block;
+
+    margin-top: 10px;
+    padding: 4px 8px;
+
+    background: #f1f6f5;
+    border: 1px solid #d7e5e1;
+    border-radius: 5px;
+
+    color: #45665b;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.general-guidance-text {
+    color: #667d8e;
+}
