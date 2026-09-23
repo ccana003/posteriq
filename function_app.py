@@ -531,8 +531,55 @@ def validate_review_guidance(review, guidance_records):
             guidance["reference_id"] = None
 
     return review
+def add_finding_locations(review, poster_structure):
+    """
+    Resolve finding block IDs to physical poster locations.
+
+    Azure OpenAI identifies the evidence using block_ids.
+    PosterIQ then deterministically resolves those IDs against
+    Document Intelligence output. The model does not generate
+    or modify poster coordinates.
+    """
+
+    blocks_by_id = {
+        block.get("block_id"): block
+        for block in poster_structure.get("content_blocks", [])
+        if block.get("block_id") is not None
+    }
+
+    for finding in review.get("findings", []):
+        evidence = finding.get("evidence", {})
+        block_ids = evidence.get("block_ids", [])
+
+        locations = []
+
+        for block_id in block_ids:
+            block = blocks_by_id.get(block_id)
+
+            if not block:
+                continue
+
+            location = block.get("location")
+
+            if not location:
+                continue
+
+            locations.append({
+                "block_id": block_id,
+                "page_number": location.get("page_number"),
+                "polygon": location.get("polygon", [])
+            })
+
+        evidence["locations"] = locations
+
+    review["poster_layout"] = {
+        "pages": poster_structure.get("pages", [])
+    }
+
+    return review
  
 @app.route(route="health", methods=["GET"])
+
 def health(req: func.HttpRequest) -> func.HttpResponse:
     """Health check endpoint for PosterIQ."""
 
@@ -1003,6 +1050,13 @@ def review_poster(req: func.HttpRequest) -> func.HttpResponse:
             poster_structure=poster_structure,
             poster_image_bytes=poster_image_bytes,
             guidance_records=guidance_records
+        )
+
+        # Resolve AI-selected evidence blocks to authoritative
+        # Document Intelligence poster coordinates.
+        review = add_finding_locations(
+            review,
+            poster_structure
         )
 
         return func.HttpResponse(
