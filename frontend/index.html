@@ -7,7 +7,7 @@
 
     <title>PosterIQ | Research Poster Review</title>
 
-    <link rel="stylesheet" href="styles.css?v=4">
+    <link rel="stylesheet" href="styles.css?v=5">
 </head>
 
 <body>
@@ -15,20 +15,33 @@
     <header class="site-header">
         <div class="header-inner">
 
-            <a href="#" class="brand">
-                <span class="brand-mark">P</span>
+            <a href="#" class="brand institutional-brand">
 
-                <span class="brand-text">
-                    <strong>PosterIQ</strong>
-                    <small>Research Poster Review</small>
-                </span>
-            </a>
+				<img
+					src="assets/ctsi-logo.jpg"
+					alt="Miami Clinical and Translational Science Institute"
+					class="ctsi-logo"
+				>
 
-            <div class="header-badge">
-                AI-guided feedback
-            </div>
+				<span class="brand-divider" aria-hidden="true"></span>
 
-        </div>
+				<span class="product-brand">
+					<strong>
+						Poster<span>IQ</span>
+					</strong>
+
+					<small>
+						Research Poster Review
+					</small>
+				</span>
+
+			</a>
+
+
+			<div class="header-badge">
+				<span class="header-badge-dot"></span>
+				Research Tool
+			</div>
     </header>
 
 
@@ -161,31 +174,7 @@
 				</button>
 
 
-				<!-- SAMPLE REVIEW -->
-				<div class="sample-review-option">
-
-					<div class="sample-divider">
-						<span>or</span>
-					</div>
-
-					<button
-						id="sampleReviewButton"
-						class="sample-review-button"
-						type="button"
-					>
-						<span class="sample-review-icon" aria-hidden="true">
-							↗
-						</span>
-
-						<span class="sample-review-text">
-							<strong>Explore a sample review</strong>
-							<small>
-								See PosterIQ in action without uploading a poster
-							</small>
-						</span>
-					</button>
-
-				</div>
+				
 
 
 				<!-- ANALYSIS STATUS -->
@@ -221,117 +210,138 @@
 
 
             <!-- =====================================================
-                 WHAT POSTERIQ REVIEWS
-            ====================================================== -->
-            <aside class="review-info">
+				 SAMPLE REVIEW CARD
+			====================================================== -->
+			<aside class="sample-card">
 
-                <div class="info-label">
-                    What PosterIQ reviews
-                </div>
+				<div class="sample-card-heading">
 
-                <h2>
-                    Feedback across the entire poster
-                </h2>
+					<div class="sample-card-icon" aria-hidden="true">
+						↗
+					</div>
 
-                <p>
-                    PosterIQ combines the content, structure, and visual
-                    presentation of your poster to provide focused,
-                    actionable feedback.
-                </p>
+					<div>
+						<h2>Explore a sample review</h2>
 
+						<p>
+							See an example analysis with real feedback
+							and poster highlights.
+						</p>
+					</div>
 
-                <div class="review-categories">
-
-                    <div class="category">
-
-                        <span>01</span>
-
-                        <div>
-                            <strong>Scientific content</strong>
-                            <p>
-                                Organization, clarity, and communication.
-                            </p>
-                        </div>
-
-                    </div>
+				</div>
 
 
-                    <div class="category">
-
-                        <span>02</span>
-
-                        <div>
-                            <strong>Statistics</strong>
-                            <p>
-                                Reporting and presentation of results.
-                            </p>
-                        </div>
-
-                    </div>
+				<button
+					id="sampleReviewButton"
+					class="sample-card-button"
+					type="button"
+				>
+					Explore a sample review
+					<span aria-hidden="true">→</span>
+				</button>
 
 
-                    <div class="category">
+				<div class="sample-features">
 
-                        <span>03</span>
+					<div>
+						<span aria-hidden="true">✓</span>
+						View all 12 findings across key categories
+					</div>
 
-                        <div>
-                            <strong>Visual design</strong>
-                            <p>
-                                Hierarchy, layout, figures, and density.
-                            </p>
-                        </div>
+					<div>
+						<span aria-hidden="true">✓</span>
+						Click findings to see them on the poster
+					</div>
 
-                    </div>
+					<div>
+						<span aria-hidden="true">✓</span>
+						Try the filtering and review features
+					</div>
 
+				</div>
 
-                    <div class="category">
-
-                        <span>04</span>
-
-                        <div>
-                            <strong>Readability</strong>
-                            <p>
-                                Language, text density, and organization.
-                            </p>
-                        </div>
-
-                    </div>
-
-
-                    <div class="category">
-
-                        <span>05</span>
-
-                        <div>
-                            <strong>Accessibility</strong>
-                            <p>
-                                Contrast and accessible communication.
-                            </p>
-                        </div>
-
-                    </div>
-
-
-                    <div class="category">
-
-                        <span>06</span>
-
-                        <div>
-                            <strong>Required elements</strong>
-                            <p>
-                                Expected research-poster components.
-                            </p>
-                        </div>
-
-                    </div>
-
-                </div>
-
-            </aside>
+			</aside>
 
         </section>
 
+		<!-- =========================================================
+			 WHAT POSTERIQ REVIEWS
+		========================================================== -->
+		<section class="review-areas">
 
+			<div class="review-areas-header">
+
+				<div class="eyebrow">
+					What PosterIQ reviews
+				</div>
+
+				<h2>
+					Feedback across the entire poster
+				</h2>
+
+				<p>
+					PosterIQ examines scientific communication,
+					statistical reporting, readability, accessibility,
+					and visual presentation.
+				</p>
+
+			</div>
+
+
+			<div class="review-area-grid">
+
+				<div class="review-area-item">
+					<span>01</span>
+					<div>
+						<strong>Scientific content</strong>
+						<p>Organization, clarity, and communication.</p>
+					</div>
+				</div>
+
+				<div class="review-area-item">
+					<span>02</span>
+					<div>
+						<strong>Statistics</strong>
+						<p>Reporting and presentation of results.</p>
+					</div>
+				</div>
+
+				<div class="review-area-item">
+					<span>03</span>
+					<div>
+						<strong>Visual design</strong>
+						<p>Hierarchy, layout, figures, and density.</p>
+					</div>
+				</div>
+
+				<div class="review-area-item">
+					<span>04</span>
+					<div>
+						<strong>Readability</strong>
+						<p>Language, text density, and organization.</p>
+					</div>
+				</div>
+
+				<div class="review-area-item">
+					<span>05</span>
+					<div>
+						<strong>Accessibility</strong>
+						<p>Contrast and accessible communication.</p>
+					</div>
+				</div>
+
+				<div class="review-area-item">
+					<span>06</span>
+					<div>
+						<strong>Required elements</strong>
+						<p>Expected research-poster components.</p>
+					</div>
+				</div>
+
+			</div>
+
+		</section>
         <!-- =========================================================
              REVIEW RESULTS
         ========================================================== -->
@@ -577,7 +587,7 @@
     </footer>
 
 
-    <script src="app.js?v=4"></script>
+    <script src="app.js?v=5"></script>
 
 </body>
 
