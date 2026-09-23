@@ -2812,3 +2812,37 @@ body {
     outline: 3px solid rgba(155, 44, 44, 0.18);
     outline-offset: 2px;
 }
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.knowledge-manager-link {
+    color: #005030;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.knowledge-manager-link:hover {
+    text-decoration: underline;
+}
+
+.knowledge-manager-link:focus-visible {
+    outline: 3px solid rgba(0, 80, 48, 0.18);
+    outline-offset: 4px;
+    border-radius: 3px;
+}
+
+@media (max-width: 700px) {
+    .header-actions {
+        gap: 10px;
+    }
+
+    .knowledge-manager-link {
+        font-size: 0.75rem;
+    }
+}
