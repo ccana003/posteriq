@@ -7,7 +7,7 @@
 
     <title>PosterIQ | Research Poster Review</title>
 
-    <link rel="stylesheet" href="styles.css?v=6">
+    <link rel="stylesheet" href="styles.css?v=7">
 </head>
 
 <body>
@@ -441,6 +441,12 @@
                     </div>
 
 
+                    <button id="mockupButton" class="secondary-button mockup-button"
+                        type="button" disabled aria-expanded="false" aria-controls="mockupEditor">
+                        Preview suggested layout
+                    </button>
+                    <p id="mockupAvailability" class="mockup-help"></p>
+
                     <div
                         id="posterPreviewViewport"
                         class="poster-preview-viewport"
@@ -456,6 +462,9 @@
                                 class="poster-preview-image"
                                 alt="Preview of the uploaded research poster"
                             >
+
+                            <canvas id="mockupCanvas" class="poster-preview-image hidden"
+                                role="img" aria-label="Suggested poster layout preserving the original design"></canvas>
 
                             <div
                                 id="posterHighlights"
@@ -474,6 +483,18 @@
                     >
                         Poster preview
                     </div>
+
+                    <section id="mockupEditor" class="mockup-editor hidden" aria-label="Suggested layout edits">
+                        <h3>Suggested layout</h3>
+                        <p class="mockup-help">Your original design stays in place. These are draft edits;
+                            check their scientific meaning before using them. Figures and logos stay unchanged.
+                            Typography is approximate; this preview is not a print-ready poster.</p>
+                        <p id="mockupStatus" role="status" aria-live="polite"></p>
+                        <div id="mockupChanges"></div>
+                        <button id="downloadMockup" class="secondary-button" type="button" disabled>
+                            Download mockup PNG
+                        </button>
+                    </section>
 
                 </aside>
 
@@ -524,6 +545,8 @@
                             </div>
 
                         </div>
+
+                        <div id="assessmentLimitations" class="assessment-limitations hidden"></div>
 
                     </div>
 
@@ -648,7 +671,8 @@
     </footer>
 
 
-    <script src="app.js?v="></script>
+    <script src="mockup.js?v=1"></script>
+    <script src="app.js?v=7"></script>
 
 </body>
 

@@ -39,6 +39,7 @@ const MAX_FILE_SIZE = 25 * 1024 * 1024;
 let currentFile = null;
 let currentReview = null;
 let currentPosterId = null;
+const posterMockup = new PosterMockup();
 
 
 /* =========================================================
@@ -114,6 +115,8 @@ function resetFile() {
 
 function resetReview() {
     currentReview = null;
+    currentPosterId = null;
+    posterMockup.reset();
 
     reviewOverview.textContent = "";
     reviewStrengths.innerHTML = "";
@@ -284,6 +287,7 @@ function loadPosterPreview(posterId) {
 }
 
 function showFindingLocation(finding, card) {
+    posterMockup.showOriginal();
     posterHighlights.innerHTML = "";
 
     document
@@ -393,6 +397,15 @@ function renderSummary(summary) {
 
     reviewStrengths.innerHTML = "";
     reviewPriorities.innerHTML = "";
+    const limitations = document.getElementById("assessmentLimitations");
+    limitations.replaceChildren();
+    limitations.classList.toggle("hidden", !summary?.assessment_limitations?.length);
+    if (summary?.assessment_limitations?.length) {
+        const label = document.createElement("strong");
+        label.textContent = "What could not be assessed confidently";
+        limitations.appendChild(label);
+        summary.assessment_limitations.forEach(text => limitations.appendChild(createSummaryItem(text)));
+    }
 
     const strengths = summary?.strengths || [];
     const priorities = summary?.top_priorities || [];
@@ -414,7 +427,7 @@ function renderSummary(summary) {
     if (priorities.length === 0) {
         reviewPriorities.appendChild(
             createSummaryItem(
-                "No priority recommendations were returned."
+                "No clear priority issues were identified."
             )
         );
     } else {
@@ -498,6 +511,12 @@ function createFindingCard(finding) {
 
     meta.appendChild(category);
     meta.appendChild(priority);
+    if (finding.kind === "optional_refinement") {
+        const optional = document.createElement("span");
+        optional.className = "guidance-type general";
+        optional.textContent = "Optional refinement";
+        meta.appendChild(optional);
+    }
 
     main.appendChild(meta);
 
@@ -521,6 +540,10 @@ function createFindingCard(finding) {
                 finding.evidence.description
             )
         );
+    }
+
+    if (finding.impact) {
+        main.appendChild(createFindingSection("Why this matters", finding.impact));
     }
 
 
@@ -703,11 +726,11 @@ function createFindingCard(finding) {
         const emptyTitle = document.createElement("h4");
         emptyTitle.className = "finding-title";
         emptyTitle.textContent =
-            "No findings in this category";
+            category === "all" ? "No clear issues identified" : "No clear issues in this category";
 
         const emptyText = document.createElement("p");
         emptyText.textContent =
-            "PosterIQ did not return specific feedback for this category.";
+            "No changes are recommended where the available evidence supports leaving the poster as it is.";
 
         emptyText.style.color = "var(--muted)";
 
@@ -734,6 +757,7 @@ function createFindingCard(finding) {
 
 function renderReview(review) {
     currentReview = review;
+    posterMockup.setReview(review, posterPreview.src);
 
     renderSummary(review.summary || {});
     renderFindings(review.findings || []);

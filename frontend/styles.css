@@ -14,6 +14,23 @@
     --shadow: 0 18px 50px rgba(24, 50, 77, 0.08);
 }
 
+/* Suggested layout keeps the original poster as its base. */
+.mockup-button { margin: 0 20px; }
+.mockup-button:disabled { opacity: 0.55; cursor: not-allowed; }
+.mockup-help { font-size: 13px; color: var(--muted); line-height: 1.5; }
+#mockupAvailability { padding: 0 20px; }
+.mockup-editor { padding: 20px; border-top: 1px solid var(--border); }
+.mockup-editor h3 { margin-top: 0; }
+.mockup-change { margin: 18px 0; padding: 14px; border: 1px solid var(--border); border-radius: 8px; }
+.mockup-change label { display: block; font-weight: 600; }
+.mockup-change p { font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.mockup-change textarea { width: 100%; margin-top: 6px; padding: 10px; font: inherit; font-size: 14px; border: 1px solid var(--border); border-radius: 6px; resize: vertical; }
+.mockup-change details { margin-bottom: 12px; font-size: 13px; }
+.mockup-edit-status { color: var(--teal-dark); }
+.assessment-limitations { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 14px; }
+.mockup-editor button:disabled { opacity: 0.55; cursor: not-allowed; }
+#mockupStatus { font-size: 14px; }
+
 * {
     box-sizing: border-box;
 }

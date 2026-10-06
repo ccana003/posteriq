@@ -32,3 +32,55 @@ Expected response:
 ## Development
 
 Copy `local.settings.example.json` to `local.settings.json` for local development and provide local configuration values there. Do not commit secrets.
+
+## Evidence-based feedback and suggested layouts
+
+New reviews use model-output schema 1.1. Findings require specific evidence,
+high confidence, and a concrete explanation of why a change matters. Acceptable
+sections should remain unchanged, and an empty findings list is valid. Optional
+refinements are labeled separately. Unclear or unreadable evidence is reported
+as an assessment limitation rather than a speculative recommendation.
+
+After a review, select **Preview suggested layout** to see targeted draft text
+edits over the original poster. The author can edit the suggested wording,
+turn individual edits off, switch back to the original, or download a PNG.
+The original PDF is never changed. Locations and approximate styles come from
+the original PDF, and every edit is linked to a review finding.
+
+The preview preserves unaffected sections, figures, logos and layout. It skips
+unsafe regions, including overlapping content, figures, tables, complex
+backgrounds, rotated text and blocks without native PDF text. It retains the
+original when draft text cannot fit without shrinking below the source font size.
+Numeric values, signs and percentages must survive the proposed AI edits.
+These checks are not a scientific fact checker: authors must verify draft wording.
+
+Mockups currently cover text regions on the first page. Recommendations needing
+new scientific content, figure redraws or a redesigned layout remain manual
+author edits. Typography is approximate, and the exported PNG is a layout draft,
+not a print-ready poster. Older saved/sample reviews remain usable but have no
+generated mockup. High-detail visual review and mockup suggestions share the
+existing review model request; there is no additional AI service to configure.
+
+### Checks
+
+With the Python environment activated:
+
+```sh
+python -m unittest discover -s tests -v
+node --test tests/mockup.test.cjs
+```
+
+The Python tests exercise source-PDF geometry, protected figures, evidence
+filtering, numeric preservation, and the review endpoint with simulated Azure
+responses. They do not verify live Azure services or real model accuracy.
+
+Optional browser checks require Playwright and Chromium. Install Playwright in
+your development environment, run `playwright install chromium`, then run
+`python tests/browser_mockup.py`. These checks use a synthetic poster and confirm
+unchanged figure pixels, editable text, overflow protection, downloads, reset,
+zero-finding reviews, older sample reviews and the mobile mockup editor.
+
+See [Windows commit and deployment instructions](docs/windows-deployment.md)
+for publishing backend changes. Frontend changes deploy through the existing
+GitHub Actions workflow after a push to `main`; backend changes require a
+separate Function App publish.

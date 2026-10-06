@@ -9,12 +9,13 @@
     "schema_version",
     "poster_id",
     "summary",
-    "findings"
+    "findings",
+    "mockup_changes"
   ],
   "properties": {
     "schema_version": {
       "type": "string",
-      "const": "1.0"
+      "const": "1.1"
     },
     "poster_id": {
       "type": "string"
@@ -25,7 +26,8 @@
       "required": [
         "overview",
         "strengths",
-        "top_priorities"
+        "top_priorities",
+        "assessment_limitations"
       ],
       "properties": {
         "overview": {
@@ -44,6 +46,13 @@
           "items": {
             "type": "string"
           }
+        },
+        "assessment_limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Uncertain or unreadable evidence that prevents a reliable assessment; not recommendations."
         }
       }
     },
@@ -51,6 +60,46 @@
       "type": "array",
       "items": {
         "$ref": "#/$defs/finding"
+      },
+      "maxItems": 12
+    },
+    "mockup_changes": {
+      "type": "array",
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "finding_index",
+          "block_id",
+          "suggested_text",
+          "font_scale",
+          "improve_contrast",
+          "reason"
+        ],
+        "properties": {
+          "finding_index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "block_id": {
+            "type": "integer"
+          },
+          "suggested_text": {
+            "type": "string"
+          },
+          "font_scale": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 1.35
+          },
+          "improve_contrast": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
       }
     }
   },
@@ -64,7 +113,10 @@
         "finding",
         "evidence",
         "recommendation",
-        "guidance"
+        "guidance",
+        "kind",
+        "confidence",
+        "impact"
       ],
       "properties": {
         "category": {
@@ -88,7 +140,7 @@
         },
         "finding": {
           "type": "string",
-          "description": "Specific issue, observation, or opportunity identified in the poster."
+          "description": "A demonstrated poster-specific problem or meaningful optional refinement. Do not criticize acceptable sections."
         },
         "evidence": {
           "type": "object",
@@ -141,6 +193,26 @@
         },
         "guidance": {
           "$ref": "#/$defs/guidance"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "issue",
+            "optional_refinement"
+          ]
+        },
+        "confidence": {
+          "type": "string",
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "description": "Include only high-confidence findings; omit uncertain claims."
+        },
+        "impact": {
+          "type": "string",
+          "description": "Specific consequence for reader understanding or accessibility that justifies changing this poster."
         }
       }
     },
