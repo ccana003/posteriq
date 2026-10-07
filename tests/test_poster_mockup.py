@@ -8,7 +8,7 @@ import azure.functions as func
 import pymupdf
 
 import function_app
-from poster_mockup import prepare_mockup
+from poster_mockup import prepare_mockup, _numeric_tokens
 
 
 def fixture():
@@ -129,11 +129,34 @@ class MockupTests(unittest.TestCase):
         self.assertEqual(prepare_mockup(review, structure, pdf)["mockup"]["changes"], [])
 
     def test_numeric_signs_and_percentages_are_preserved(self):
-        for original, suggested in (("Effect: -1.2", "Effect: 1.2"), ("Rate: 80%", "Rate: 80")):
+        for original, suggested in (("Effect: -1.2", "Effect: 1.2"), ("Rate: 80%", "Rate: 80"),
+                                    ("Effect: \u22121.2", "Effect: 1.2"),
+                                    ("Effect: \uff0d1.2", "Effect: 1.2"),
+                                    ("Effect: 1e\u22123", "Effect: 1e3")):
             pdf, structure, review = fixture()
             structure["content_blocks"][0]["content"] = original
             review["mockup_changes"][0]["suggested_text"] = suggested
             self.assertEqual(prepare_mockup(review, structure, pdf)["mockup"]["changes"], [])
+
+    def test_equivalent_unicode_signs_keep_their_numeric_meaning(self):
+        self.assertEqual(_numeric_tokens("Effect: \u22121.2; scale: 1e\u22123"),
+                         _numeric_tokens("Effect: -1.2; scale: 1e-3"))
+        self.assertNotEqual(_numeric_tokens("Effect: \u22121.2"), _numeric_tokens("Effect: +1.2"))
+
+    def test_high_priorities_are_not_dropped_by_medium_findings(self):
+        pdf, structure, review = fixture()
+        template = review["findings"][0]
+        review["findings"] = [dict(template, recommendation=f"Medium {i}") for i in range(6)]
+        review["findings"].extend([
+            dict(template, priority="high", recommendation="High A"),
+            dict(template, priority="high", recommendation="High B"),
+            dict(template, priority="high", confidence="low", recommendation="Uncertain"),
+            dict(template, priority="high", kind="optional_refinement", recommendation="Optional"),
+        ])
+        review["mockup_changes"] = []
+        result = prepare_mockup(review, structure, pdf)
+        self.assertEqual(result["summary"]["top_priorities"],
+                         ["High A", "High B", "Medium 0", "Medium 1", "Medium 2"])
 
     def test_empty_review_is_valid(self):
         pdf, structure, review = fixture()

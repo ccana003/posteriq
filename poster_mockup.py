@@ -7,7 +7,12 @@ import re
 import pymupdf
 
 
-NUMERIC_TOKEN = r"[-+]?(?:\d+(?:[.,]\d+)*|\.\d+)(?:[eE][-+]?\d+)?%?"
+NUMERIC_TOKEN = r"[-+\u2212\ufe63\uff0d\uff0b]?(?:\d+(?:[.,]\d+)*|\.\d+)(?:[eE][-+\u2212\ufe63\uff0d\uff0b]?\d+)?%?"
+NUMERIC_SIGNS = str.maketrans({"\u2212": "-", "\ufe63": "-", "\uff0d": "-", "\uff0b": "+"})
+
+
+def _numeric_tokens(text):
+    return Counter(token.translate(NUMERIC_SIGNS) for token in re.findall(NUMERIC_TOKEN, text))
 
 
 def _rectangle(location, dimensions, pdf_page):
@@ -83,10 +88,14 @@ def prepare_mockup(review, structure, pdf_bytes):
             accepted[index] = len(accepted)
     review["findings"] = [findings[index] for index in accepted]
     # Never leave priorities referring to a filtered-out finding.
-    review["summary"]["top_priorities"] = [
-        finding["recommendation"] for finding in review["findings"]
+    priority_findings = [
+        finding for finding in review["findings"]
         if finding.get("kind") == "issue" and finding.get("priority") in ("high", "medium")
-    ][:5]
+    ]
+    priority_findings.sort(key=lambda finding: 0 if finding["priority"] == "high" else 1)
+    review["summary"]["top_priorities"] = [
+        finding["recommendation"] for finding in priority_findings[:5]
+    ]
 
     proposals = review.pop("mockup_changes", [])
     mockup = {"changes": [], "omitted_count": len(proposals)}
@@ -153,9 +162,7 @@ def prepare_mockup(review, structure, pdf_bytes):
                 continue
             # Preserve every numeric token, including repeated values and units'
             # numeric portions. This is a guard, not a scientific fact checker.
-            if Counter(re.findall(NUMERIC_TOKEN, original)) != Counter(
-                re.findall(NUMERIC_TOKEN, suggested)
-            ):
+            if _numeric_tokens(original) != _numeric_tokens(suggested):
                 continue
             spans = [
                 span for span in text_spans
