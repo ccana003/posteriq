@@ -58,7 +58,27 @@ def main():
             assert page.locator("#posterViewer").is_visible()
             assert "1 draft edit applied" in page.locator("#viewerModeLabel").inner_text()
             assert page.locator(".viewer-edit-highlight").count() == 1
+            assert page.locator(".viewer-edit-badge").inner_text() == "Edit 1"
+            page.locator("#highlightMockupEdits").uncheck()
+            assert page.locator(".viewer-edit-highlight").count() == 0
+            assert "outlines hidden" in page.locator("#outlineStatus").inner_text()
+            page.locator("#highlightMockupEdits").check()
+            assert page.locator(".viewer-edit-highlight").count() == 1
             fitted_width = page.locator("#viewerStage").bounding_box()["width"]
+            # Check successive animation frames at the reported zoom, including scrolling.
+            page.locator("#posterZoom").select_option("2")
+            assert page.evaluate("""async () => {
+                const samples = [];
+                for (let i = 0; i < 30; i++) {
+                    await new Promise(requestAnimationFrame);
+                    const rect = viewerStage.getBoundingClientRect();
+                    samples.push([rect.width, rect.height]);
+                    viewerViewport.scrollLeft = 20;
+                    viewerViewport.scrollTop = 20;
+                }
+                return samples.slice(5).every(sample => sample.every((value, index) =>
+                    Math.abs(value - samples[5][index]) < 0.1));
+            }""")
             page.locator("#posterZoom").select_option("3")
             assert page.locator("#viewerStage").bounding_box()["width"] > fitted_width * 2.9
             page.locator("#posterZoom").select_option("1")

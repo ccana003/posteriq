@@ -7,7 +7,7 @@
 
     <title>PosterIQ | Research Poster Review</title>
 
-    <link rel="stylesheet" href="styles.css?v=8">
+    <link rel="stylesheet" href="styles.css?v=9">
 </head>
 
 <body>
@@ -687,6 +687,7 @@
             <label for="posterZoom">Zoom</label>
             <select id="posterZoom"><option value="1">Fit poster</option><option value="1.5">150%</option><option value="2">200%</option><option value="3">300%</option><option value="4">400%</option></select>
             <label class="viewer-highlight-control"><input id="highlightMockupEdits" type="checkbox" checked> Outline changed areas</label>
+            <span id="outlineStatus" class="mockup-help" role="status"></span>
             <span id="viewerDownloadMount"></span>
         </div>
         <p id="downloadStatus" class="download-status" role="status" aria-live="polite"></p>
@@ -702,7 +703,7 @@
     </dialog>
 
 
-    <script src="mockup.js?v=4"></script>
+    <script src="mockup.js?v=5"></script>
     <script src="app.js?v=7"></script>
 
 </body>

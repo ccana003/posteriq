@@ -2884,11 +2884,12 @@ body.poster-viewer-open { overflow: hidden; }
 #viewerDownloadMount { margin-left: auto; }
 .download-status { min-height: 30px; padding: 5px 20px; margin: 0; font-size: 13px; color: var(--teal-dark); }
 .viewer-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 300px; }
-.viewer-viewport { overflow: auto; min-width: 0; min-height: 0; padding: 16px; background: #edf1f3; }
+.viewer-viewport { overflow: scroll; scrollbar-gutter: stable; min-width: 0; min-height: 0; padding: 16px; background: #edf1f3; }
 .viewer-stage { position: relative; margin: 0 auto; flex-shrink: 0; }
 #largePosterCanvas { display: block; width: 100%; height: 100%; }
-.viewer-edit-highlights { position: absolute; inset: 0; pointer-events: none; }
-.viewer-edit-highlight { position: absolute; border: 2px dashed #087f8c; box-shadow: 0 0 0 1px white; }
+.viewer-edit-highlights { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
+.viewer-edit-highlight { position: absolute; border: 3px solid #bc5100; background: rgba(255, 190, 60, .18); box-shadow: 0 0 0 2px white; }
+.viewer-edit-badge { position: absolute; top: 0; left: 0; background: #bc5100; color: white; font: bold 12px sans-serif; padding: 3px 5px; }
 .viewer-sidebar { overflow-y: auto; min-width: 0; min-height: 0; border-left: 1px solid var(--border); }
 .viewer-sidebar .mockup-editor { border-top: 0; }
 .viewer-original .viewer-body { grid-template-columns: minmax(0, 1fr); }

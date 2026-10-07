@@ -102,7 +102,8 @@ class PosterMockup {
         });
         document.getElementById("viewPosterButton").addEventListener("click", () => this.enlarge());
         this.viewerResize = new ResizeObserver(() => { if (this.viewer.open) this.renderViewer(); });
-        this.viewerResize.observe(this.viewerViewport);
+        // Poster overflow must not trigger another fit calculation when scrollbars change.
+        this.viewerResize.observe(this.viewerViewport, {box: "border-box"});
         this.generation = 0;
         this.button.addEventListener("click", () => {
             if (this.open) this.showOriginal();
@@ -227,10 +228,22 @@ class PosterMockup {
         this.viewerStage.style.width = `${width}px`;
         this.viewerStage.style.height = `${width / ratio}px`;
         this.editHighlights.replaceChildren();
+        this.outlineControl.disabled = !mockup || !this.appliedChanges.length;
+        document.getElementById("outlineStatus").textContent = !mockup
+            ? "Switch to Suggested layout to see changed areas."
+            : !this.appliedChanges.length
+                ? "No edits are currently shown to outline."
+                : this.outlineControl.checked
+                    ? `${this.appliedChanges.length} changed areas highlighted`
+                    : "Changed-area outlines hidden";
         if (mockup && this.outlineControl.checked) {
             this.appliedChanges.forEach(change => {
                 const marker = document.createElement("div");
                 marker.className = "viewer-edit-highlight";
+                const badge = document.createElement("span");
+                badge.className = "viewer-edit-badge";
+                badge.textContent = `Edit ${this.changes.indexOf(change) + 1}`;
+                marker.appendChild(badge);
                 const {left, top, width, height} = change.region;
                 Object.assign(marker.style, {left: `${left * 100}%`, top: `${top * 100}%`, width: `${width * 100}%`, height: `${height * 100}%`});
                 this.editHighlights.appendChild(marker);
