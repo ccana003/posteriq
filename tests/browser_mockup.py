@@ -107,7 +107,8 @@ def main():
             page.locator("#mockupChanges input").check()
             page.locator("#mockupText0").fill("An overlong draft sentence. " * 180)
             assert "does not fit" in page.locator(".mockup-edit-status").inner_text()
-            assert "1 enabled edits could not fit" in page.locator("#mockupStatus").inner_text()
+            assert not page.locator("#mockupChanges input").is_checked()
+            assert "1 drafts could not fit" in page.locator("#mockupStatus").inner_text()
             assert page.locator("#mockupCanvas").evaluate("c=>c.toDataURL()") == original
             page.locator("#mockupText0").fill("Enrollment: 120 participants. Response rate: 80%.")
             with page.expect_download() as event:

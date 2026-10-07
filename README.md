@@ -49,6 +49,12 @@ Original/Suggested layout modes, an applied-edit count and optional changed-area
 outlines. Draft edits scroll separately from the poster. The inline poster stays
 beside a long review on desktop. Downloads display preparation and handoff status,
 and repeated clicks are blocked while the PNG is being prepared.
+Readability rewrites take priority over cosmetic edits, with up to twelve
+source-based drafts across affected text blocks. Condensation must retain the
+source claims, qualifiers, numerical values, units and citations. One finding
+may require several drafts, so the viewer reports both drafts applied and
+recommendations addressed. Drafts that cannot fit are automatically unchecked
+and marked Not applied; shortening their text retries the fit check.
 The original PDF is never changed. Locations and approximate styles come from
 the original PDF, and every edit is linked to a review finding.
 

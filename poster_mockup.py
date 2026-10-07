@@ -119,7 +119,14 @@ def prepare_mockup(review, structure, pdf_bytes):
         ]
         drawings = page.get_drawings()
         used = set()
-        for proposal in proposals[:6]:
+        # Readability rewrites take priority if several proposals target one block.
+        proposals = sorted(proposals, key=lambda proposal: 0 if (
+            proposal.get("finding_index") in accepted
+            and findings[proposal["finding_index"]].get("category") == "readability"
+            and proposal.get("suggested_text", "").strip() != blocks.get(
+                proposal.get("block_id"), {}).get("content", "").strip()
+        ) else 1)
+        for proposal in proposals[:12]:
             index, block_id = proposal.get("finding_index"), proposal.get("block_id")
             if index not in accepted or block_id not in blocks or block_id in used:
                 continue

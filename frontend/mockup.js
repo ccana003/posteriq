@@ -310,9 +310,11 @@ class PosterMockup {
             checkbox.checked = true;
             checkbox.addEventListener("change", () => {
                 change.enabled = checkbox.checked;
+                change.fitRejected = false;
                 this.paint();
             });
-            label.append(checkbox, document.createTextNode(` Apply edit ${index + 1}`));
+            change.checkbox = checkbox;
+            label.append(checkbox, document.createTextNode(` Include draft edit ${index + 1}`));
             const reason = document.createElement("p");
             reason.textContent = change.reason;
             const finding = document.createElement("p");
@@ -334,6 +336,11 @@ class PosterMockup {
             text.maxLength = 5000;
             text.addEventListener("input", () => {
                 change.suggested_text = text.value;
+                if (change.fitRejected) {
+                    change.enabled = true;
+                    change.checkbox.checked = true;
+                    change.fitRejected = false;
+                }
                 this.paint();
             });
             change.note = document.createElement("p");
@@ -356,11 +363,19 @@ class PosterMockup {
         this.appliedChanges = [];
         this.changes.forEach(change => {
             change.note.textContent = "";
-            if (!change.enabled) return;
+            if (!change.enabled) {
+                change.note.textContent = change.fitRejected
+                    ? "Not applied: this draft does not fit. Shorten its text to try again; the original is retained."
+                    : "Not applied: this draft is turned off.";
+                return;
+            }
             const layout = change.suggested_text.trim()
                 ? fitMockupText(context, change, this.canvas.width, this.canvas.height) : null;
             if (!layout) {
-                change.note.textContent = "Original text kept: this edit does not fit. Shorten the draft or turn off this edit.";
+                change.enabled = false;
+                change.fitRejected = true;
+                change.checkbox.checked = false;
+                change.note.textContent = "Not applied: this draft does not fit. Shorten its text to try again; the original is retained.";
                 return;
             }
             const {box, font, lines, lineHeight} = layout;
@@ -380,7 +395,7 @@ class PosterMockup {
             change.note.textContent = "Shown in the mockup. Check this draft against your source poster.";
         });
         this.status.textContent = this.changes.length
-            ? `${applied} of ${this.changes.length} draft edits shown, addressing ${new Set(this.appliedChanges.map(change => change.finding_index)).size} of ${this.findingCount} recommendations. ${this.changes.filter(change => change.enabled).length - applied} enabled edits could not fit; ${this.changes.filter(change => !change.enabled).length} edits turned off. All other areas retain the original design.`
+            ? `${applied} of ${this.changes.length} draft edits shown, addressing ${new Set(this.appliedChanges.map(change => change.finding_index)).size} of ${this.findingCount} recommendations. ${this.changes.filter(change => change.fitRejected).length} drafts could not fit; ${this.changes.filter(change => !change.enabled && !change.fitRejected).length} edits turned off. All other areas retain the original design.`
             : this.hasFindings
                 ? "Original design retained. Apply the recommendations manually where new content or graphic changes are needed."
                 : "No clear issues identified. Your original poster is preserved.";

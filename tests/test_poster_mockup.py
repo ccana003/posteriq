@@ -56,6 +56,23 @@ class MockupTests(unittest.TestCase):
         self.assertEqual(change["original_text"], structure["content_blocks"][0]["content"])
         self.assertEqual(result["mockup"]["omitted_count"], 0)
 
+    def test_readability_rewrite_wins_over_contrast_for_same_block(self):
+        pdf, structure, review = fixture()
+        contrast_finding = copy.deepcopy(review["findings"][0])
+        contrast_finding["category"] = "accessibility"
+        review["findings"].insert(0, contrast_finding)
+        rewrite = review["mockup_changes"][0]
+        rewrite["finding_index"] = 1
+        contrast = {**rewrite, "finding_index": 0,
+                    "suggested_text": structure["content_blocks"][0]["content"],
+                    "font_scale": 1, "improve_contrast": True}
+        review["mockup_changes"].insert(0, contrast)
+        result = prepare_mockup(review, structure, pdf)
+        self.assertEqual(len(result["mockup"]["changes"]), 1)
+        self.assertEqual(result["mockup"]["changes"][0]["finding_index"], 1)
+        self.assertEqual(result["mockup"]["changes"][0]["suggested_text"], rewrite["suggested_text"])
+        self.assertEqual(result["mockup"]["omitted_count"], 1)
+
     def test_uncertain_findings_removed_and_indices_remapped(self):
         pdf, structure, review = fixture()
         uncertain = copy.deepcopy(review["findings"][0])

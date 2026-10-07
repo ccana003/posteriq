@@ -342,7 +342,27 @@ DESIGN-PRESERVING MOCKUP
 
 Return mockup_changes as an array (empty is valid). Each change must reference
 one finding by its zero-based finding_index and one of that finding's block_ids.
-Suggest at most 6 targeted edits to page-1 text blocks. Preserve the existing
+Suggest at most 12 targeted edits to page-1 text blocks. Prioritize readability
+rewrites BEFORE cosmetic or contrast-only edits. For each supported finding that
+recommends shortening or rewriting text, provide an actual suggested_text rewrite
+for its eligible evidence blocks, not just a typography adjustment. Start with
+one useful rewrite per readability finding, then cover additional affected blocks
+if capacity remains. A finding about several sections may need several edits;
+do not claim that changing one block resolves the whole finding.
+
+Use ONLY the information in that source block. Condense repeated phrasing into
+short plain-text statements or bullets while retaining scientific meaning,
+qualifiers, uncertainty, limitations, relationships, numerical values and their
+units, names and citation markers. Never turn an association into causation or
+make a result sound more certain. Do not merge claims from unrelated blocks.
+For dense narrative, aim for a materially shorter rewrite (roughly 60–75% of
+original words when faithful), not a cosmetic paraphrase of equal length.
+Shorten further when increasing font_scale; the same area must hold larger text.
+Prefer clear concise sentences over many short lines that waste vertical space.
+For contrast-only changes, keep the exact original text and font_scale=1.0.
+Before returning each draft, check its length against the source block and the
+requested font increase. If meaning cannot be preserved within that space,
+leave that recommendation for manual editing rather than inventing a rewrite. Preserve the existing
 layout, color palette, section placement, figures, logos and all acceptable areas.
 Use suggested_text for a concise faithful edit of that single block, or its
 unchanged original text for a typography adjustment. Do not invent, remove or
