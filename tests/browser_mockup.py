@@ -87,6 +87,7 @@ def main():
             page.locator("#mockupChanges input").check()
             page.locator("#mockupText0").fill("An overlong draft sentence. " * 180)
             assert "does not fit" in page.locator(".mockup-edit-status").inner_text()
+            assert "1 enabled edits could not fit" in page.locator("#mockupStatus").inner_text()
             assert page.locator("#mockupCanvas").evaluate("c=>c.toDataURL()") == original
             page.locator("#mockupText0").fill("Enrollment: 120 participants. Response rate: 80%.")
             with page.expect_download() as event:
@@ -118,6 +119,8 @@ def main():
             # A long review must not push the sticky poster out of sight.
             long_review = {**review, "findings": review["findings"] * 25}
             page.evaluate("review=>renderReview(review)", long_review)
+            assert "address 1 of 25 recommendations" in page.locator("#mockupAvailability").inner_text()
+            assert "24 recommendations without a draft edit" in page.locator("#mockupChanges summary").first.inner_text()
             page.locator(".finding-card").nth(12).scroll_into_view_if_needed()
             position = page.locator(".poster-panel").bounding_box()
             assert position["y"] >= 0 and position["y"] + position["height"] <= 1100

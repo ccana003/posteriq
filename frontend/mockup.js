@@ -146,9 +146,11 @@ class PosterMockup {
         this.changes = (review.mockup.changes || []).map(change => ({...change, enabled: true}));
         this.omittedCount = review.mockup.omitted_count || 0;
         this.button.disabled = false;
-        this.hasFindings = Boolean(review.findings?.length);
+        this.findingCount = review.findings?.length || 0;
+        this.hasFindings = Boolean(this.findingCount);
+        this.coveredFindingCount = new Set(this.changes.map(change => change.finding_index)).size;
         this.availability.textContent = this.changes.length
-            ? `${this.changes.length} targeted draft ${this.changes.length === 1 ? "edit" : "edits"}; the surrounding design is preserved.`
+            ? `${this.changes.length} draft edits address ${this.coveredFindingCount} of ${this.findingCount} recommendations. The mockup is a partial preview; review every recommendation separately.`
             : this.hasFindings
                 ? "These recommendations need author edits; no safe automatic layout changes were identified."
                 : "No clear issues identified. Preview keeps your original poster.";
@@ -268,6 +270,24 @@ class PosterMockup {
     }
 
     renderEditors(review) {
+        const covered = new Set(this.changes.map(change => change.finding_index));
+        const uncovered = (review.findings || []).filter((finding, index) => !covered.has(index));
+        if (uncovered.length) {
+            const section = document.createElement("details");
+            section.className = "mockup-change";
+            const heading = document.createElement("summary");
+            heading.textContent = `${uncovered.length} recommendations without a draft edit`;
+            const explanation = document.createElement("p");
+            explanation.textContent = "No safe automatic text draft was provided for these recommendations. Apply them in your source poster; they are not reflected in this mockup.";
+            const list = document.createElement("ul");
+            uncovered.forEach(finding => {
+                const item = document.createElement("li");
+                item.textContent = finding.finding;
+                list.appendChild(item);
+            });
+            section.append(heading, explanation, list);
+            this.changesElement.appendChild(section);
+        }
         this.changes.forEach((change, index) => {
             const card = document.createElement("div");
             card.className = "mockup-change";
@@ -347,7 +367,7 @@ class PosterMockup {
             change.note.textContent = "Shown in the mockup. Check this draft against your source poster.";
         });
         this.status.textContent = this.changes.length
-            ? `${applied} of ${this.changes.length} draft edits shown. All other areas retain the original design.`
+            ? `${applied} of ${this.changes.length} draft edits shown, addressing ${new Set(this.appliedChanges.map(change => change.finding_index)).size} of ${this.findingCount} recommendations. ${this.changes.filter(change => change.enabled).length - applied} enabled edits could not fit; ${this.changes.filter(change => !change.enabled).length} edits turned off. All other areas retain the original design.`
             : this.hasFindings
                 ? "Original design retained. Apply the recommendations manually where new content or graphic changes are needed."
                 : "No clear issues identified. Your original poster is preserved.";
