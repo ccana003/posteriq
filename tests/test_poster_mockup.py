@@ -189,6 +189,64 @@ class MockupTests(unittest.TestCase):
         review["findings"][0]["kind"] = "optional_refinement"
         self.assertEqual(prepare_mockup(review, structure, pdf)["summary"]["top_priorities"], [])
 
+    def test_unsafe_region_retains_readability_text_draft(self):
+        pdf, structure, review = fixture()
+        structure["tables"] = [{"bounding_regions": [structure["content_blocks"][0]["location"]]}]
+        review["mockup_changes"][0].update(section_name="Abstract", section_purpose="Scope and purpose")
+        result = prepare_mockup(review, structure, pdf)
+        self.assertEqual(result["mockup"]["changes"], [])
+        self.assertEqual(result["mockup"]["manual_drafts"][0]["section_name"], "Abstract")
+        self.assertIn("120", result["mockup"]["manual_drafts"][0]["suggested_text"])
+
+    def test_unfaithful_numeric_rewrite_is_not_retained_as_manual_draft(self):
+        pdf, structure, review = fixture()
+        review["mockup_changes"][0]["suggested_text"] = "Enrollment: 121 participants. Response rate: 80%."
+        result = prepare_mockup(review, structure, pdf)
+        self.assertEqual(result["mockup"]["manual_drafts"], [])
+
+    def test_editorial_pass_produces_multiple_section_replacements(self):
+        _, structure, review = fixture()
+        abstract = "This poster describes how primary care can support inclusive clinical trials."
+        background = "Fragmented stakeholder workflows can delay identification of eligible participants."
+        structure["content_blocks"] = [
+            {"block_id": 3, "content": abstract}, {"block_id": 5, "content": background}]
+        structure["full_text"] = abstract + "\n" + background
+        review["findings"][0]["evidence"]["block_ids"] = [3, 5]
+        drafts = [
+            {"finding_index": 0, "block_id": 3, "suggested_text": "• Describe primary care's role in inclusive clinical trials.",
+             "font_scale": 1, "improve_contrast": False, "reason": "Focus on purpose.",
+             "section_name": "Abstract", "section_purpose": "Scope and purpose"},
+            {"finding_index": 0, "block_id": 5, "suggested_text": "• Fragmented workflows can delay participant identification.",
+             "font_scale": 1, "improve_contrast": False, "reason": "State the problem.",
+             "section_name": "Background", "section_purpose": "Problem"}]
+        captured = {}
+        def complete(**kwargs):
+            captured.update(kwargs)
+            return SimpleNamespace(choices=[SimpleNamespace(finish_reason="stop",
+                message=SimpleNamespace(content=json.dumps({"mockup_changes": drafts})))])
+        client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=complete)))
+        with patch.object(function_app, "get_openai_client", return_value=client), patch.dict(
+                "os.environ", {"POSTERIQ_OPENAI_DEPLOYMENT": "test"}):
+            result = function_app.generate_section_rewrites(review, structure)
+        self.assertEqual(result["mockup_changes"], drafts)
+        context = json.loads(captured["messages"][1]["content"])
+        self.assertEqual(len(context["poster"]["content_blocks"]), 2)
+        self.assertEqual(context["rewrite_targets"][0]["evidence"]["block_ids"], [3, 5])
+
+    def test_editorial_failure_preserves_completed_review(self):
+        _, structure, review = fixture()
+        with patch.object(function_app, "get_openai_client", side_effect=RuntimeError("Unavailable")):
+            result = function_app.generate_section_rewrites(review, structure)
+        self.assertEqual(len(result["findings"]), 1)
+        self.assertTrue(result["summary"]["assessment_limitations"])
+
+    def test_editorial_pass_skips_reviews_without_readability_findings(self):
+        _, structure, review = fixture()
+        review["findings"][0]["category"] = "accessibility"
+        with patch.object(function_app, "get_openai_client") as client:
+            function_app.generate_section_rewrites(review, structure)
+        client.assert_not_called()
+
     def test_health_still_works(self):
         response = function_app.health(func.HttpRequest(method="GET", url="/api/health", body=b""))
         self.assertEqual(response.status_code, 200)
@@ -211,9 +269,14 @@ class MockupTests(unittest.TestCase):
         captured = {}
 
         def complete(**kwargs):
-            captured.update(kwargs)
+            if kwargs["response_format"]["json_schema"]["name"] == "posteriq_section_rewrites":
+                payload = {"mockup_changes": [dict(model_review["mockup_changes"][0],
+                    section_name="Results", section_purpose="Report enrollment and response.")]}
+            else:
+                captured.update(kwargs)
+                payload = model_review
             return SimpleNamespace(choices=[SimpleNamespace(
-                finish_reason="stop", message=SimpleNamespace(content=json.dumps(model_review))
+                finish_reason="stop", message=SimpleNamespace(content=json.dumps(payload))
             )])
 
         image = function_app.render_poster_image(pdf)["bytes"]

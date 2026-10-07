@@ -98,7 +98,7 @@ def prepare_mockup(review, structure, pdf_bytes):
     ]
 
     proposals = review.pop("mockup_changes", [])
-    mockup = {"changes": [], "omitted_count": len(proposals)}
+    mockup = {"changes": [], "manual_drafts": [], "omitted_count": len(proposals)}
     review["mockup"] = mockup
     dimensions = next((p for p in structure.get("pages", []) if p.get("page_number") == 1), None)
     if not dimensions or not proposals:
@@ -126,6 +126,7 @@ def prepare_mockup(review, structure, pdf_bytes):
             and proposal.get("suggested_text", "").strip() != blocks.get(
                 proposal.get("block_id"), {}).get("content", "").strip()
         ) else 1)
+        manual_candidates = {}
         for proposal in proposals[:12]:
             index, block_id = proposal.get("finding_index"), proposal.get("block_id")
             if index not in accepted or block_id not in blocks or block_id in used:
@@ -134,6 +135,19 @@ def prepare_mockup(review, structure, pdf_bytes):
             if block_id not in finding.get("evidence", {}).get("block_ids", []):
                 continue
             block, rect = blocks[block_id], rectangles[block_id]
+            original = block.get("content", "").strip()
+            suggested = proposal.get("suggested_text", "").strip()
+            if (original and suggested and suggested != original and len(suggested) <= 5000
+                    and finding.get("category") == "readability"
+                    and _numeric_tokens(original) == _numeric_tokens(suggested)
+                    and block.get("role") not in ("title", "pageHeader", "pageFooter")):
+                manual_candidates.setdefault(block_id, {
+                    "finding_index": accepted[index], "block_id": block_id,
+                    "original_text": original, "suggested_text": suggested,
+                    "reason": proposal.get("reason", ""),
+                    "section_name": proposal.get("section_name", finding.get("evidence", {}).get("section", "Text section")),
+                    "section_purpose": proposal.get("section_purpose", ""),
+                    "limitation": "This text region cannot be replaced safely while preserving the original design. Apply the rewrite in your source poster."})
             if rect is None or block.get("role") in ("title", "pageHeader", "pageFooter"):
                 continue
             if any(
@@ -200,10 +214,13 @@ def prepare_mockup(review, structure, pdf_bytes):
                 "finding_index": accepted[index], "block_id": block_id,
                 "original_text": original, "suggested_text": suggested,
                 "reason": proposal.get("reason", ""), "font_scale": scale,
+                "section_name": proposal.get("section_name", finding.get("evidence", {}).get("section", "Text section")),
+                "section_purpose": proposal.get("section_purpose", ""),
                 "region": {"left": rect.x0 / page.rect.width, "top": rect.y0 / page.rect.height,
                            "width": rect.width / page.rect.width, "height": rect.height / page.rect.height},
                 "style": style,
             })
             used.add(block_id)
+        mockup["manual_drafts"] = [draft for block_id, draft in manual_candidates.items() if block_id not in used]
     mockup["omitted_count"] = len(proposals) - len(mockup["changes"])
     return review

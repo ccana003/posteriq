@@ -70,7 +70,13 @@ new scientific content, figure redraws or a redesigned layout remain manual
 author edits. Typography is approximate, and the exported PNG is a layout draft,
 not a print-ready poster. Older saved/sample reviews remain usable but have no
 generated mockup. High-detail visual review and mockup suggestions share the
-existing review model request; there is no additional AI service to configure.
+existing model deployment. Supported readability findings trigger an additional
+editorial model request that reads the whole poster and creates section-purpose
+rewrites (for example, abstract scope, background problem, model observations,
+and conclusion takeaway). This adds processing time and model usage but needs no
+new service configuration. Safe rewrites appear on the poster; drafts for unsafe
+regions remain available as text for manual placement. If the editorial request
+fails, the completed review is preserved and an assessment limitation is shown.
 
 ### Checks
 

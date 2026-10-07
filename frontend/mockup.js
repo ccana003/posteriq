@@ -155,6 +155,9 @@ class PosterMockup {
             : this.hasFindings
                 ? "These recommendations need author edits; no safe automatic layout changes were identified."
                 : "No clear issues identified. Preview keeps your original poster.";
+        if (review.mockup.manual_drafts?.length) {
+            this.availability.textContent += ` ${review.mockup.manual_drafts.length} additional rewrites are available as text drafts for manual placement.`;
+        }
         this.renderEditors(review);
     }
 
@@ -289,9 +292,9 @@ class PosterMockup {
             const section = document.createElement("details");
             section.className = "mockup-change";
             const heading = document.createElement("summary");
-            heading.textContent = `${uncovered.length} recommendations without a draft edit`;
+            heading.textContent = `${uncovered.length} recommendations without a preview edit`;
             const explanation = document.createElement("p");
-            explanation.textContent = "No safe automatic text draft was provided for these recommendations. Apply them in your source poster; they are not reflected in this mockup.";
+            explanation.textContent = "These recommendations are not reflected in the poster image. Review any text-only rewrites below and apply them in your source poster; other recommendations need manual editing.";
             const list = document.createElement("ul");
             uncovered.forEach(finding => {
                 const item = document.createElement("li");
@@ -304,6 +307,13 @@ class PosterMockup {
         this.changes.forEach((change, index) => {
             const card = document.createElement("div");
             card.className = "mockup-change";
+            if (change.section_name) {
+                const heading = document.createElement("h3");
+                heading.textContent = change.section_name;
+                const purpose = document.createElement("p");
+                purpose.textContent = change.section_purpose || "";
+                card.append(heading, purpose);
+            }
             const label = document.createElement("label");
             const checkbox = document.createElement("input");
             checkbox.type = "checkbox";
@@ -347,6 +357,32 @@ class PosterMockup {
             change.note.className = "mockup-edit-status";
             change.note.setAttribute("role", "status");
             card.append(label, reason, finding, original, textLabel, text, change.note);
+            this.changesElement.appendChild(card);
+        });
+        (review.mockup.manual_drafts || []).forEach(draft => {
+            const card = document.createElement("div");
+            card.className = "mockup-change";
+            const heading = document.createElement("h3");
+            heading.textContent = `${draft.section_name || "Section rewrite"} · text draft only`;
+            const purpose = document.createElement("p");
+            purpose.textContent = draft.section_purpose || draft.reason;
+            const limitation = document.createElement("p");
+            limitation.className = "mockup-edit-status";
+            limitation.textContent = `Not applied to the poster. ${draft.limitation}`;
+            const original = document.createElement("details");
+            const summary = document.createElement("summary");
+            summary.textContent = "Original text";
+            const source = document.createElement("p");
+            source.textContent = draft.original_text;
+            original.append(summary, source);
+            const label = document.createElement("p");
+            label.textContent = "Suggested section rewrite — select and copy into your source poster";
+            const text = document.createElement("textarea");
+            text.value = draft.suggested_text;
+            text.readOnly = true;
+            text.rows = 8;
+            text.setAttribute("aria-label", `${draft.section_name || "Section"} rewrite for manual placement`);
+            card.append(heading, purpose, limitation, original, label, text);
             this.changesElement.appendChild(card);
         });
     }

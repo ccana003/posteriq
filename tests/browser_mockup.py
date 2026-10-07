@@ -137,11 +137,20 @@ def main():
             page.get_by_role("button", name="Close preview").click()
             page.get_by_role("button", name="Show original poster").click()
             assert page.locator("#posterPreview").is_visible()
+            manual = {"finding_index": 0, "block_id": 99, "section_name": "Background",
+                      "section_purpose": "Explain the problem", "reason": "Condense repeated narrative",
+                      "original_text": "Repeated narrative", "suggested_text": "• State the distinct problem.",
+                      "limitation": "The region overlaps a graphic."}
+            manual_review = {**review, "mockup": {**review["mockup"], "manual_drafts": [manual]}}
+            page.evaluate("review=>renderReview(review)", manual_review)
+            page.get_by_role("button", name="Preview suggested layout").click()
+            assert page.get_by_role("textbox", name="Background rewrite for manual placement").input_value() == manual["suggested_text"]
+            assert "Not applied to the poster" in page.locator("#mockupChanges").inner_text()
             # A long review must not push the sticky poster out of sight.
             long_review = {**review, "findings": review["findings"] * 25}
             page.evaluate("review=>renderReview(review)", long_review)
             assert "address 1 of 25 recommendations" in page.locator("#mockupAvailability").inner_text()
-            assert "24 recommendations without a draft edit" in page.locator("#mockupChanges summary").first.inner_text()
+            assert "24 recommendations without a preview edit" in page.locator("#mockupChanges summary").first.inner_text()
             page.locator(".finding-card").nth(12).scroll_into_view_if_needed()
             position = page.locator(".poster-panel").bounding_box()
             assert position["y"] >= 0 and position["y"] + position["height"] <= 1100
