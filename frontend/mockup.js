@@ -1,4 +1,26 @@
 /* Draw only validated text edits over the original image. Never alter the PDF. */
+async function loadMockupImage(imageUrl) {
+    // The normal <img> may already have cached this URL without CORS headers.
+    // Use a distinct URL and a fresh CORS request before drawing on a canvas.
+    const url = new URL(imageUrl, window.location.href);
+    url.searchParams.set("mockup", "1");
+    const response = await fetch(url.href, {mode: "cors", cache: "no-store"});
+    if (!response.ok) {
+        throw new Error("The poster image could not be loaded. Try the preview again.");
+    }
+    const objectUrl = URL.createObjectURL(await response.blob());
+    try {
+        return await new Promise((resolve, reject) => {
+            const image = new Image();
+            image.onload = () => resolve(image);
+            image.onerror = () => reject(new Error("The poster image could not be decoded. Try the preview again."));
+            image.src = objectUrl;
+        });
+    } finally {
+        URL.revokeObjectURL(objectUrl);
+    }
+}
+
 function wrapMockupText(context, text, width) {
     const lines = [];
     for (const paragraph of text.split(/\r?\n/)) {
@@ -114,13 +136,7 @@ class PosterMockup {
         this.download.disabled = true;
         try {
             if (!this.imagePromise) {
-                this.imagePromise = new Promise((resolve, reject) => {
-                    const image = new Image();
-                    image.crossOrigin = "anonymous";
-                    image.onload = () => resolve(image);
-                    image.onerror = () => reject(new Error("The poster image could not be loaded. Check the API connection and try again."));
-                    image.src = this.imageUrl;
-                });
+                this.imagePromise = loadMockupImage(this.imageUrl);
             }
             const image = await this.imagePromise;
             if (generation !== this.generation || !this.open) return;
@@ -132,7 +148,9 @@ class PosterMockup {
         } catch (error) {
             if (generation !== this.generation || !this.open) return;
             this.imagePromise = null;
-            this.status.textContent = error.message;
+            this.status.textContent = error instanceof TypeError
+                ? "The mockup image request was blocked or could not connect. Confirm the preview website is allowed in the Function App's CORS settings, then try again."
+                : error.message;
         }
     }
 

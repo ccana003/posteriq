@@ -6,7 +6,7 @@ rendered in the actual frontend. Core integration is covered by unittest.
 """
 
 from functools import partial
-from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler, SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import shutil
 import sys
@@ -44,7 +44,7 @@ def main():
             errors = []
             page.on("pageerror", lambda error: errors.append(str(error)))
             page.goto(f"http://127.0.0.1:{server.server_port}/")
-            page.route("**/test-poster.png", lambda route: route.fulfill(body=image, content_type="image/png"))
+            page.route("**/test-poster.png*", lambda route: route.fulfill(body=image, content_type="image/png"))
             page.evaluate('(review) => {posterPreview.src="/test-poster.png";renderReview(review);}', review)
             page.get_by_role("button", name="Preview suggested layout").click()
             page.wait_for_function('document.querySelector("#mockupStatus").textContent.startsWith("1 of 1")')
@@ -100,8 +100,51 @@ def main():
             assert page.locator("#mockupCanvas").evaluate("e=>e.getBoundingClientRect().right<=window.innerWidth")
             assert page.locator("#mockupEditor").evaluate("e=>e.scrollWidth<=e.clientWidth")
             assert not errors, errors
+
+            # Reproduce an Azure-like cross-origin image cache: the original
+            # image response has no CORS header, but CORS requests are allowed.
+            requests = []
+
+            class ImageHandler(BaseHTTPRequestHandler):
+                def do_GET(self):
+                    origin = self.headers.get("Origin")
+                    requests.append((self.path, origin))
+                    self.send_response(200)
+                    self.send_header("Content-Type", "image/png")
+                    self.send_header("Cache-Control", "private, max-age=3600")
+                    if origin:
+                        self.send_header("Access-Control-Allow-Origin", origin)
+                    # Deliberately omit Vary: Origin to exercise the stale cache.
+                    self.end_headers()
+                    self.wfile.write(image)
+
+                def log_message(self, *args):
+                    pass
+
+            image_server = ThreadingHTTPServer(("127.0.0.1", 0), ImageHandler)
+            image_thread = threading.Thread(target=image_server.serve_forever, daemon=True)
+            image_thread.start()
+            try:
+                cached_page = browser.new_page()
+                cached_page.goto(f"http://127.0.0.1:{server.server_port}/")
+                url = f"http://127.0.0.1:{image_server.server_port}/cached-poster.png"
+                cached_page.evaluate("url=>posterPreview.src=url", url)
+                cached_page.wait_for_function("posterPreview.complete && posterPreview.naturalWidth > 0")
+                assert requests[0] == ("/cached-poster.png", None)
+                cached_page.evaluate("review=>renderReview(review)", review)
+                cached_page.get_by_role("button", name="Preview suggested layout").click()
+                cached_page.wait_for_function('document.querySelector("#mockupStatus").textContent.startsWith("1 of 1")')
+                assert any(path == "/cached-poster.png?mockup=1" and origin for path, origin in requests)
+                with cached_page.expect_download() as download:
+                    cached_page.get_by_role("button", name="Download mockup PNG").click()
+                assert Path(download.value.path()).read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
+                cached_page.close()
+            finally:
+                image_server.shutdown()
+                image_server.server_close()
+                image_thread.join()
             browser.close()
-            print("Browser checks passed: preserved figure pixels, edits/reverts, overflow protection, PNG download, original toggle, reset, zero findings, legacy sample and mobile editor.")
+            print("Browser checks passed: preserved figure pixels, edits/reverts, overflow protection, PNG download, original toggle, reset, zero findings, legacy sample, mobile editor and cached cross-origin image loading.")
     finally:
         server.shutdown()
         server.server_close()
