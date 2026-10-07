@@ -55,7 +55,23 @@ def main():
                 return c.toDataURL();
             }""")
             assert page.locator("#mockupCanvas").is_visible()
+            assert page.locator("#posterViewer").is_visible()
+            assert "1 draft edit applied" in page.locator("#viewerModeLabel").inner_text()
+            assert page.locator(".viewer-edit-highlight").count() == 1
+            fitted_width = page.locator("#viewerStage").bounding_box()["width"]
+            page.locator("#posterZoom").select_option("3")
+            assert page.locator("#viewerStage").bounding_box()["width"] > fitted_width * 2.9
+            page.locator("#posterZoom").select_option("1")
+            page.locator("#viewerOriginalButton").click()
+            assert "Original poster" in page.locator("#viewerModeLabel").inner_text()
+            assert page.locator("#downloadMockup").is_disabled()
+            assert page.locator(".viewer-edit-highlight").count() == 0
+            page.locator("#viewerMockupButton").click()
             assert page.locator("#mockupCanvas").evaluate("c=>c.toDataURL()") != original
+            page.set_viewport_size({"width": 390, "height": 844})
+            close_position = page.locator("#closePosterViewer").bounding_box()
+            assert close_position["y"] >= 0 and close_position["x"] + close_position["width"] <= 390
+            page.set_viewport_size({"width": 1440, "height": 1100})
             assert page.evaluate("""() => {
                 const c=document.createElement('canvas');
                 c.width=mockupCanvas.width;c.height=mockupCanvas.height;
@@ -74,11 +90,37 @@ def main():
             assert page.locator("#mockupCanvas").evaluate("c=>c.toDataURL()") == original
             page.locator("#mockupText0").fill("Enrollment: 120 participants. Response rate: 80%.")
             with page.expect_download() as event:
-                page.get_by_role("button", name="Download mockup PNG").click()
+                page.evaluate("""() => {
+                    window.savedToBlob = mockupCanvas.toBlob.bind(mockupCanvas);
+                    window.exportCalls = 0;
+                    mockupCanvas.toBlob = (callback, type) => {
+                        exportCalls++;
+                        setTimeout(() => savedToBlob(callback, type), 1000);
+                    };
+                    downloadMockup.click(); downloadMockup.click(); downloadMockup.click();
+                }""")
+                assert page.locator("#downloadMockup").is_disabled()
+                assert page.locator("#downloadMockup").inner_text() == "Preparing PNG…"
+                assert "Please wait" in page.locator("#downloadStatus").inner_text()
+                assert page.evaluate("exportCalls") == 1
             assert event.value.suggested_filename == "posteriq-suggested-layout.png"
             assert Path(event.value.path()).read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
+            assert "Download started" in page.locator("#downloadStatus").inner_text()
+            assert not page.locator("#downloadMockup").is_disabled()
+            page.evaluate("() => {mockupCanvas.toBlob = callback => callback(null);}")
+            page.get_by_role("button", name="Download mockup PNG").click()
+            assert "could not be prepared" in page.locator("#downloadStatus").inner_text()
+            assert not page.locator("#downloadMockup").is_disabled()
+            page.evaluate("() => {mockupCanvas.toBlob = savedToBlob;}")
+            page.get_by_role("button", name="Close preview").click()
             page.get_by_role("button", name="Show original poster").click()
             assert page.locator("#posterPreview").is_visible()
+            # A long review must not push the sticky poster out of sight.
+            long_review = {**review, "findings": review["findings"] * 25}
+            page.evaluate("review=>renderReview(review)", long_review)
+            page.locator(".finding-card").nth(12).scroll_into_view_if_needed()
+            position = page.locator(".poster-panel").bounding_box()
+            assert position["y"] >= 0 and position["y"] + position["height"] <= 1100
             page.evaluate("resetReview()")
             assert page.locator("#mockupButton").is_disabled()
             empty = {**review, "findings": [], "mockup": {"changes": [], "omitted_count": 0},
@@ -99,6 +141,8 @@ def main():
             # independent overflow and is outside these changes.
             assert page.locator("#mockupCanvas").evaluate("e=>e.getBoundingClientRect().right<=window.innerWidth")
             assert page.locator("#mockupEditor").evaluate("e=>e.scrollWidth<=e.clientWidth")
+            close_position = page.locator("#closePosterViewer").bounding_box()
+            assert close_position["y"] >= 0 and close_position["x"] + close_position["width"] <= 390
             assert not errors, errors
 
             # Reproduce an Azure-like cross-origin image cache: the original
@@ -144,7 +188,7 @@ def main():
                 image_server.server_close()
                 image_thread.join()
             browser.close()
-            print("Browser checks passed: preserved figure pixels, edits/reverts, overflow protection, PNG download, original toggle, reset, zero findings, legacy sample, mobile editor and cached cross-origin image loading.")
+            print("Browser checks passed: preserved pixels, edits/reverts, zoom, version labels, changed-area outlines, download progress and deduplication, export failure recovery, sticky preview, mobile viewer, reset, zero findings, legacy sample and cached cross-origin images.")
     finally:
         server.shutdown()
         server.server_close()

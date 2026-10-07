@@ -44,6 +44,11 @@ as an assessment limitation rather than a speculative recommendation.
 After a review, select **Preview suggested layout** to see targeted draft text
 edits over the original poster. The author can edit the suggested wording,
 turn individual edits off, switch back to the original, or download a PNG.
+The suggested layout opens in a large viewer with zoom up to 400%, explicit
+Original/Suggested layout modes, an applied-edit count and optional changed-area
+outlines. Draft edits scroll separately from the poster. The inline poster stays
+beside a long review on desktop. Downloads display preparation and handoff status,
+and repeated clicks are blocked while the PNG is being prepared.
 The original PDF is never changed. Locations and approximate styles come from
 the original PDF, and every edit is linked to a review finding.
 
