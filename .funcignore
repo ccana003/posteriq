@@ -5,6 +5,7 @@ venv/
 .python_packages/
 __pycache__/
 tests/
+scripts/
 frontend/
 docs/
 knowledge/

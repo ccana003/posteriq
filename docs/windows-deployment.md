@@ -4,6 +4,23 @@ These commands are for Command Prompt (`cmd.exe`), from the repository's local
 checkout. Replace the example path with the actual PosterIQ folder. Run each
 step separately and inspect its result before continuing.
 
+## Download a prepared ZIP for manual Azure deployment
+
+Before merging, open the PR's **Checks** tab and select **Build Azure Functions
+deployment ZIP**. Open its workflow run and wait for a successful result. In the
+run's **Artifacts** section, download **posteriq-azure-deployment**.
+
+Extract that downloaded artifact ZIP once. It contains **posteriq-api-deploy.zip**.
+Upload the inner **posteriq-api-deploy.zip**, still zipped, using the Function App's
+manual ZIP deployment option. It has `host.json` at its root and includes tested
+Linux/Python 3.12 dependencies. GitHub's **Code → Download ZIP** is a source archive
+and should not be uploaded directly as this deployment package.
+
+The build workflow does not deploy to Azure or merge the PR. Manually uploading
+to `posteriq-api` updates that app, so use a separate test Function App if you need
+to keep production unchanged. A frontend PR preview still uses the API address
+configured in its JavaScript; it does not automatically create a test backend.
+
 ## Bring the changes into your local checkout
 
 First check your local working tree. Preserve any existing edits before copying

@@ -1,0 +1,48 @@
+name: Build Azure Functions deployment ZIP
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-zip:
+    name: Build and validate deployment package
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check mockup text layout
+        run: node --test tests/mockup.test.cjs
+      - name: Build and test Linux Python deployment ZIP
+        run: python scripts/build_deployment_zip.py --output "$RUNNER_TEMP/posteriq-api-deploy.zip"
+      - name: Upload deployment package
+        uses: actions/upload-artifact@v4
+        with:
+          name: posteriq-azure-deployment
+          path: ${{ runner.temp }}/posteriq-api-deploy.zip
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+      - name: Explain the download
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          Download **posteriq-azure-deployment** from this run's Artifacts section.
+          Extract that downloaded artifact ZIP once. Inside it is **posteriq-api-deploy.zip**.
+          Upload the inner **posteriq-api-deploy.zip**, still zipped, through Azure's manual ZIP deployment.
+          It contains backend code and Linux/Python 3.12 dependencies with host.json at the root.
+          No Azure deployment or PR merge is performed by this workflow.
+          The frontend must be tested through the separate Static Web Apps PR preview.
+          EOF
