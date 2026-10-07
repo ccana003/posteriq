@@ -14,6 +14,23 @@
     --shadow: 0 18px 50px rgba(24, 50, 77, 0.08);
 }
 
+/* Suggested layout keeps the original poster as its base. */
+.mockup-button { margin: 0 20px; }
+.mockup-button:disabled { opacity: 0.55; cursor: not-allowed; }
+.mockup-help { font-size: 13px; color: var(--muted); line-height: 1.5; }
+#mockupAvailability { padding: 0 20px; }
+.mockup-editor { padding: 20px; border-top: 1px solid var(--border); }
+.mockup-editor h3 { margin-top: 0; }
+.mockup-change { margin: 18px 0; padding: 14px; border: 1px solid var(--border); border-radius: 8px; }
+.mockup-change label { display: block; font-weight: 600; }
+.mockup-change p { font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.mockup-change textarea { width: 100%; margin-top: 6px; padding: 10px; font: inherit; font-size: 14px; border: 1px solid var(--border); border-radius: 6px; resize: vertical; }
+.mockup-change details { margin-bottom: 12px; font-size: 13px; }
+.mockup-edit-status { color: var(--teal-dark); }
+.assessment-limitations { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 14px; }
+.mockup-editor button:disabled { opacity: 0.55; cursor: not-allowed; }
+#mockupStatus { font-size: 14px; }
+
 * {
     box-sizing: border-box;
 }
@@ -2845,4 +2862,47 @@ body {
     .knowledge-manager-link {
         font-size: 0.75rem;
     }
+}
+
+/* Poster inspection stays separate from the long list of recommendations. */
+.poster-view-controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 20px 14px; }
+#previewModeLabel { font-size: 13px; color: var(--teal-dark); }
+.poster-panel { top: 16px; max-height: calc(100dvh - 32px); overflow-y: auto; }
+.poster-preview-viewport { min-height: 0; max-height: 42vh; }
+body.poster-viewer-open { overflow: hidden; }
+.poster-viewer { position: fixed; inset: 12px; margin: 0 auto; width: min(1500px, calc(100vw - 24px)); height: calc(100dvh - 24px); max-width: none; max-height: none; padding: 0; border: 1px solid var(--border); border-radius: 14px; color: var(--text); background: white; }
+.poster-viewer[open] { display: flex; flex-direction: column; }
+.poster-viewer::backdrop { background: rgba(16, 38, 58, 0.7); }
+.viewer-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--border); }
+.viewer-header h2 { margin: 0; font-size: 20px; }
+#viewerModeLabel { margin: 4px 0 0; font-size: 14px; font-weight: 600; color: var(--teal-dark); }
+.viewer-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--border); font-size: 14px; }
+.viewer-mode-buttons { display: flex; gap: 6px; }
+.viewer-mode-buttons button[aria-pressed="true"] { background: var(--teal); color: white; border-color: var(--teal); }
+.viewer-toolbar select { font: inherit; padding: 8px; border: 1px solid var(--border); border-radius: 6px; }
+.viewer-highlight-control { display: flex; align-items: center; gap: 5px; }
+#viewerDownloadMount { margin-left: auto; }
+.download-status { min-height: 30px; padding: 5px 20px; margin: 0; font-size: 13px; color: var(--teal-dark); }
+.viewer-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 300px; }
+.viewer-viewport { overflow: scroll; scrollbar-gutter: stable; min-width: 0; min-height: 0; padding: 16px; background: #edf1f3; }
+.viewer-stage { position: relative; margin: 0 auto; flex-shrink: 0; }
+#largePosterCanvas { display: block; width: 100%; height: 100%; }
+.viewer-edit-highlights { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
+.viewer-edit-highlight { position: absolute; border: 3px solid #bc5100; background: rgba(255, 190, 60, .18); box-shadow: 0 0 0 2px white; }
+.viewer-edit-badge { position: absolute; top: 0; left: 0; background: #bc5100; color: white; font: bold 12px sans-serif; padding: 3px 5px; }
+.viewer-sidebar { overflow-y: auto; min-width: 0; min-height: 0; border-left: 1px solid var(--border); }
+.viewer-sidebar .mockup-editor { border-top: 0; }
+.viewer-original .viewer-body { grid-template-columns: minmax(0, 1fr); }
+.viewer-original .viewer-sidebar { display: none; }
+@media (max-width: 850px) { .poster-panel { max-height: none; } }
+@media (max-width: 700px) {
+    .viewer-header { padding: 10px 12px; }
+    .viewer-header h2 { font-size: 18px; }
+    .viewer-toolbar { padding: 10px 12px; gap: 8px; }
+    .viewer-mode-buttons { width: 100%; }
+    #viewerDownloadMount { margin-left: 0; }
+    .viewer-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(160px, 1fr) minmax(120px, .7fr); }
+    .viewer-original .viewer-body { grid-template-rows: minmax(0, 1fr); }
+    .viewer-sidebar { border-left: 0; border-top: 1px solid var(--border); }
+    .download-status { padding-left: 12px; padding-right: 12px; }
 }
