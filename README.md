@@ -101,3 +101,68 @@ See [Windows commit and deployment instructions](docs/windows-deployment.md)
 for publishing backend changes. Frontend changes deploy through the existing
 GitHub Actions workflow after a push to `main`; backend changes require a
 separate Function App publish.
+
+## Guided poster builder
+
+Open **Build a poster** (`frontend/builder.html`) to create an editable poster
+alongside the existing PDF review workflow. Select research, protocol, case/model
+or narrative, enter title/credits, audience, dimensions and organizer instructions,
+then request a guided outline. The backend loads the existing curated knowledge
+at runtime. Sourced required elements are distinguished from suggested sections;
+when guidance is unavailable the outline explicitly says requirements were not
+verified. A non-AI suggested outline is also available.
+
+Answer each section's question with source notes, generate concise wording,
+revise it and explicitly approve it. Only approved content appears on the poster.
+Editing content or source notes removes approval. Figures accept PNG/JPEG files,
+with author-supplied descriptions and captions. Drag sections or their corners,
+use keyboard arrows or placement controls, and adjust body font size. Layout
+checks report overlaps, unapproved sections, small text, unavailable figures and
+clipped text. Two provisional column layouts can be compared; switching layouts
+rearranges the same approved content and never rewrites it. Actual institutional
+templates and branding can be added to the template registry once supplied.
+
+The assembled-poster review sends the rendered PNG plus structured content to
+the existing Azure OpenAI deployment. It checks the argument, consistency,
+figure/caption relationships, readable layout and applicable guidance. Suggested
+replacements return to the editor as **unapproved** drafts. The review is marked
+out of date after any poster change. AI output does not certify scientific
+validity; authors must verify wording, figures, citations and requirements.
+
+Drafts, including source notes and figures, save in IndexedDB on the current
+browser/device. They are not saved in an account or synchronized across devices.
+Use **Save editable draft** to download a JSON backup, and **Open draft** to
+restore it elsewhere. The PNG export is a 1200-pixel-wide mockup, not a
+print-ready or editable publication file. Figures are resized to a maximum
+1600-pixel edge for this preview. SVG/PDF/PowerPoint export, supplied templates,
+authenticated account storage and collaborative editing are future work.
+
+### Builder API and deployment
+
+The new `POST /api/builder/{action}` route supports `plan`, `draft` and `review`.
+It uses existing OpenAI and knowledge-storage configuration; no new secrets or
+Azure services are required. Requests are stateless and bounded to 10 MB. Failed
+AI actions leave the browser document unchanged. Numerical values introduced by
+AI drafts are checked against supplied notes; this does not replace semantic or
+scientific review. Source images are kept locally; final review sends the poster
+rendering instead of duplicating every figure in the request.
+
+Deploy the new Function App ZIP before testing AI actions in the new PR preview.
+The ZIP builder includes `poster_builder.py` and validates all eight Functions.
+The static frontend deploys separately through the existing workflow. Add the
+new PR preview's exact origin to Function App CORS while retaining current
+origins, as for the previous PR. Do not merge until the deployed AI flow has been
+reviewed with representative source material and current curated guidance.
+
+Additional checks:
+
+```bash
+node --test tests/*.test.cjs
+python -m unittest discover -s tests -v
+python tests/browser_builder.py
+python tests/browser_mockup.py
+```
+
+The browser checks use deterministic AI fixtures, so they validate UI behavior
+and data handling without claiming to validate live AI quality. GitHub Actions
+runs both browser workflows in Chromium as well as deployment-package checks.

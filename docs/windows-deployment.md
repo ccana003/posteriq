@@ -117,3 +117,32 @@ Document Intelligence, Storage, OpenAI or review quality.
 The mockup uses the same API origin as the existing frontend. If its image or
 download fails, check the Function App's existing CORS configuration for the
 frontend's exact origin, without replacing other allowed origins.
+
+## Testing the poster builder before merging
+
+The builder is a new page at `/builder.html`. Its AI actions need the latest
+Function App deployment, not just the new frontend preview.
+
+1. In the builder PR, open the successful **Build Azure Functions deployment ZIP**
+   workflow. Download the **posteriq-azure-deployment** artifact.
+2. Extract the downloaded outer ZIP once. Manually deploy the inner
+   **posteriq-api-deploy.zip**, still zipped, using the existing Function App
+   manual deployment process. This updates the shared backend; the existing PDF
+   endpoints are retained.
+3. In Function App **CORS**, add the new PR preview's exact origin (no trailing
+   slash). Keep the production origin and other allowed origins. The new PR has
+   a different preview origin from PR #1.
+4. Open the PR preview, choose **Build a poster**, and hard-refresh if necessary.
+5. Create an outline using representative source notes, draft/approve sections,
+   upload a figure and caption, compare layouts, and review the assembled poster.
+   Check that moving between layouts leaves approved wording unchanged.
+6. Save an editable JSON draft, reload and restore it, then download the mockup
+   PNG. Test the existing PDF review path as well.
+
+The same OpenAI deployment and curated knowledge store are used; no new secrets
+or services are needed. Until the new backend is deployed, manual authoring and
+saved drafts work, but AI builder actions will report that the API is unavailable.
+The organization's actual templates have not been supplied: both included layouts
+are explicitly provisional. Only merge after testing the live AI output and
+required-element guidance. Merging deploys the static site; it does not upload
+the Function App ZIP automatically.

@@ -10,6 +10,7 @@ from azure.core.credentials import AzureKeyCredential
 from azure.storage.blob import BlobServiceClient, ContentSettings
 from openai import AzureOpenAI
 from poster_mockup import prepare_mockup
+from poster_builder import BuilderValidationError, make_plan, draft_section, review_document
 from knowledge_base import (
     load_guidance_records,
     search_guidance
@@ -1309,3 +1310,28 @@ def review_poster(req: func.HttpRequest) -> func.HttpResponse:
             mimetype="application/json",
             status_code=500
         )
+
+
+@app.route(route="builder/{action}", methods=["POST"])
+def poster_builder_action(req: func.HttpRequest) -> func.HttpResponse:
+    """Stateless AI actions; the browser owns the author's editable document."""
+    action = req.route_params.get("action")
+    handlers = {"plan": make_plan, "draft": draft_section, "review": review_document}
+    if action not in handlers:
+        return func.HttpResponse(json.dumps({"error": "Unknown builder action."}), status_code=404, mimetype="application/json")
+    try:
+        if len(req.get_body()) > 10 * 1024 * 1024:
+            raise BuilderValidationError("This poster request is too large. Use smaller figures.")
+        payload = req.get_json()
+        if not isinstance(payload, dict):
+            raise BuilderValidationError("A JSON object is required.")
+        try:
+            records = load_guidance_records()
+        except Exception:
+            records = []
+        result = handlers[action](get_openai_client(), os.environ["POSTERIQ_OPENAI_DEPLOYMENT"], payload, records)
+        return func.HttpResponse(json.dumps(result), mimetype="application/json", status_code=200)
+    except (BuilderValidationError, ValueError) as exc:
+        return func.HttpResponse(json.dumps({"error": str(exc)}), mimetype="application/json", status_code=400)
+    except Exception:
+        return func.HttpResponse(json.dumps({"error": "The AI builder could not complete this step. Your draft is unchanged. Please retry or continue editing manually."}), mimetype="application/json", status_code=502)
