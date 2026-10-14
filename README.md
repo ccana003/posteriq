@@ -202,3 +202,20 @@ Function. Deploy the latest ZIP, which includes `article_import.py`, before
 trying this action. Existing PDF review and from-scratch builder flows remain
 available. Automated source/number checks do not establish scientific validity;
 verify the proposed text against the publication before approving.
+
+
+### Figure sizing and optional headings
+
+Figure headings default off on the poster; the section name remains in the editor
+and section list. Use **Show figure title on poster** to display it. Proportional
+mode fits the section around the image's width and aspect ratio, placing the
+caption immediately beneath it. The corner handle and width/height controls resize
+the image proportionally, with automatic layout adjustment to prevent overlap.
+**Fit section to image** removes excess container space. Saved drafts retain title
+visibility and sizing preferences; images are not repeatedly auto-resized on reload.
+
+Crop-to-fill and stretch-to-fill are explicit alternatives. Crop can hide axes or
+legends, and stretch distorts image proportions; layout checks flag these choices.
+Very crowded boards may constrain the image size or return to template slots:
+inspect fit warnings instead of shrinking scientific text silently. Live view,
+template comparison, consistency-review image and PNG export use the same renderer.

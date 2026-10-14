@@ -83,6 +83,8 @@
         const source = node("p", s.requirement_level === "required" ? "Required by the cited guidance (check applicability)." : "Suggested section — adapt it to your poster.", "builder-sources");
         $("sectionSources").append(source);
         (s.sources || []).forEach(r => $("sectionSources").append(node("p", `${r.reference_id} · ${r.source || "Guidance"}: ${r.text || ""}`, "builder-sources")));
+        $("showFigureTitle").checked=s.show_title===true;
+        $("figureSizing").value=s.image_sizing||"proportional";
         $("figureThumbnail").hidden = !s.imageData;
         if(s.imageData) $("figureThumbnail").src = s.imageData;
         else $("figureThumbnail").removeAttribute("src");
@@ -114,6 +116,38 @@
         $("planNotes").hidden = !doc.plan_notes.length;
         $("planNoteList").replaceChildren(...doc.plan_notes.map(t => node("li",t)));
     }
+    function figureMetrics(s, poster, ctx, image, boxWidth) {
+        const width=1200, pad=4;
+        const font=s.font_size*width/(poster.width_in*72), lineH=font*1.25;
+        const headingSize=Math.max(12,font*1.2);
+        ctx.font=`bold ${headingSize}px Arial`;
+        const heads=s.show_title===true?C.wrap(ctx,s.title,boxWidth-pad*2):[];
+        const headH=heads.length?heads.length*headingSize*1.2+pad*2:pad;
+        ctx.font=`${font}px Arial`;
+        const captions=s.caption.trim()?C.wrap(ctx,s.caption,boxWidth-pad*2):[];
+        const captionH=captions.length?captions.length*lineH+pad:0;
+        const imageW=Math.max(1,boxWidth-pad*2);
+        const imageH=image?.naturalWidth?imageW*image.naturalHeight/image.naturalWidth:0;
+        return {pad,font,lineH,headingSize,heads,headH,captions,captionH,imageW,imageH,totalH:headH+imageH+captionH+pad};
+    }
+    function fitFigureRect(s, requestedWidth=s.rect.w, maxHeight=.8) {
+        const image=images.get(s.imageData);if(!image?.naturalWidth)return s.rect;
+        const height=1200*doc.height_in/doc.width_in,ctx=canvas.getContext("2d");
+        let width=Math.max(.08,Math.min(.95,requestedWidth));
+        let metrics=figureMetrics(s,doc,ctx,image,width*1200);
+        for(let i=0;i<12&&metrics.totalH>height*maxHeight&&width>.08;i++){
+            width=Math.max(.08,width*.9);metrics=figureMetrics(s,doc,ctx,image,width*1200);
+        }
+        return C.clampRect({...s.rect,w:width,h:Math.min(maxHeight,metrics.totalH/height)});
+    }
+    function arrangePoster(sections,template) {
+        return C.arrange(sections,template).map(s=>s.kind==="figure"&&(s.image_sizing||"proportional")==="proportional"?{...s,rect:fitFigureRect(s,s.rect.w,s.rect.h)}:s);
+    }
+    function resizeFigure(s,start,dx,dy) {
+        if(s.kind!=="figure"||s.image_sizing&&s.image_sizing!=="proportional")return C.clampRect({...start,w:start.w+dx,h:start.h+dy});
+        const widthChange=Math.abs(dx/start.w)>=Math.abs(dy/start.h)?dx:dy*start.w/start.h;
+        return fitFigureRect({...s,rect:start},start.w+widthChange);
+    }
     function drawPoster(target, document) {
         const width = 1200, height = Math.round(width * document.height_in / document.width_in);
         target.width = width; target.height = height;
@@ -138,6 +172,35 @@
             const r = {x:s.rect.x*width,y:s.rect.y*height,w:s.rect.w*width,h:s.rect.h*height};
             ctx.save(); ctx.beginPath(); ctx.rect(r.x,r.y,r.w,r.h); ctx.clip();
             ctx.fillStyle = tint; ctx.fillRect(r.x,r.y,r.w,r.h);
+            if(s.kind==="figure") {
+                const image=images.get(s.imageData),m=figureMetrics(s,document,ctx,image,r.w);
+                ctx.fillStyle=green;ctx.font=`bold ${m.headingSize}px Arial`;
+                m.heads.forEach((line,i)=>ctx.fillText(line,r.x+m.pad,r.y+m.pad+i*m.headingSize*1.2));
+                let y=r.y+m.headH;
+                if(!s.approved){ctx.font=`${m.font}px Arial`;ctx.fillStyle="#657a83";ctx.fillText("Awaiting author approval",r.x+m.pad,y);ctx.restore();return;}
+                const availableH=Math.max(1,r.h-m.headH-m.captionH-m.pad);
+                if(image?.complete&&image.naturalWidth){
+                    if(m.imageW<80||Math.min(m.imageH,availableH)<60)issues.push(`${s.title}: the figure is too small to inspect comfortably. Enlarge it or free space on the board.`);
+                    if(s.image_sizing==="crop"){
+                        const scale=Math.max(m.imageW/image.naturalWidth,availableH/image.naturalHeight);
+                        const sw=m.imageW/scale,sh=availableH/scale;
+                        ctx.drawImage(image,(image.naturalWidth-sw)/2,(image.naturalHeight-sh)/2,sw,sh,r.x+m.pad,y,m.imageW,availableH);
+                        y+=availableH;
+                    }else if(s.image_sizing==="stretch"){
+                        ctx.drawImage(image,r.x+m.pad,y,m.imageW,availableH);y+=availableH;
+                    }else{
+                        const scale=Math.min(m.imageW/image.naturalWidth,availableH/image.naturalHeight);
+                        const iw=image.naturalWidth*scale,ih=image.naturalHeight*scale;
+                        ctx.drawImage(image,r.x+(r.w-iw)/2,y,iw,ih);y+=ih;
+                        if(iw<m.imageW*.9)issues.push(`${s.title}: the region is too short for a full-width figure. Use Fit section to image.`);
+                    }
+                }else issues.push(`${s.title}: figure image is unavailable.`);
+                if(m.captions.length)y+=m.pad;
+                ctx.font=`${m.font}px Arial`;ctx.fillStyle="#253746";
+                if(y+m.captions.length*m.lineH>r.y+r.h-m.pad+.5)issues.push(`${s.title}: caption overflows its region.`);
+                m.captions.forEach((line,i)=>ctx.fillText(line,r.x+m.pad,y+i*m.lineH));
+                ctx.restore();return;
+            }
             const pad = 12, headingSize = Math.max(12, s.font_size*1.2*width/(document.width_in*72));
             ctx.fillStyle = green; ctx.font = `bold ${headingSize}px Arial`;
             const heads = C.wrap(ctx,s.title,r.w-pad*2), headH=heads.length*(headingSize*1.2)+pad*2;
@@ -148,18 +211,6 @@
             let y = r.y+headH;
             if (!s.approved) { ctx.fillStyle = "#657a83"; ctx.fillText("Awaiting author approval",r.x+pad,y); ctx.restore(); return; }
             let body = s.text;
-            if (s.kind === "figure") {
-                const image = images.get(s.imageData);
-                const capLines = C.wrap(ctx,s.caption,r.w-pad*2);
-                const imageH = Math.max(0,r.h-headH-capLines.length*lineH-pad*2);
-                if (image?.complete && image.naturalWidth) {
-                    const factor = Math.min((r.w-pad*2)/image.naturalWidth,imageH/image.naturalHeight);
-                    const iw=image.naturalWidth*factor, ih=image.naturalHeight*factor;
-                    ctx.drawImage(image,r.x+(r.w-iw)/2,y,iw,ih);
-                    if (iw < 80 || ih < 60) issues.push(`${s.title}: the figure is too small to inspect comfortably.`);
-                } else { issues.push(`${s.title}: figure image is unavailable.`); }
-                y += imageH+pad; body = s.caption;
-            }
             const lines = C.wrap(ctx,body,r.w-pad*2);
             if (lines.some(line=>ctx.measureText(line).width>r.w-pad*2) || y+lines.length*lineH>r.y+r.h-pad+.5)
                 issues.push(`${s.title}: text overflows its region. Shorten it or enlarge its area; the mockup clips overflow.`);
@@ -179,11 +230,14 @@
         const zoom = $("builderZoom").value;
         stage.style.width = `${zoom === "fit" ? Math.min(1200, Math.max(100,$("builderViewport").clientWidth-32), Math.max(100,$("builderViewport").clientHeight-32)*canvas.width/canvas.height) : 1200*Number(zoom)}px`;
     }
-    function settleSection(id, rect) {
+    function settleSection(id, rect, quiet=false) {
         const result=C.placeSection(doc.sections,id,rect,doc.template);
         doc.sections=result.sections;
-        if(result.mode==="grid")message("The board returned to template slots to prevent overlap. Wording and font sizes are unchanged; check text fit.");
-        else message("Section placed. Other sections moved as needed to keep the board clear.");
+        const active=doc.sections.find(s=>s.id===id);
+        if(active?.kind==="figure"&&(active.image_sizing||"proportional")==="proportional"&&images.get(active.imageData)?.naturalWidth)active.figure_fitted=true;
+        if(result.mode==="grid")doc.sections=doc.sections.map(s=>s.kind==="figure"&&(s.image_sizing||"proportional")==="proportional"?{...s,rect:fitFigureRect(s,s.rect.w,s.rect.h)}:s);
+        if(!quiet&&result.mode==="grid")message("The board returned to template slots to prevent overlap. Wording and font sizes are unchanged; check text fit.");
+        else if(!quiet)message("Section placed. Other sections moved as needed to keep the board clear.");
     }
     function renderHandles() {
         $("builderHandles").replaceChildren();
@@ -210,7 +264,7 @@
                 const move=e=>{
                     const dx=(e.clientX-x)/bounds.width,dy=(e.clientY-y)/bounds.height;
                     if (Math.abs(dx)+Math.abs(dy)<.002) return;
-                    moved=true; s.rect=C.clampRect(resizing?{...start,w:start.w+dx,h:start.h+dy}:{...start,x:start.x+dx,y:start.y+dy});
+                    moved=true; s.rect=C.clampRect(resizing?resizeFigure(s,start,dx,dy):{...start,x:start.x+dx,y:start.y+dy});
                     Object.assign(item.style,{left:s.rect.x*100+"%",top:s.rect.y*100+"%",width:s.rect.w*100+"%",height:s.rect.h*100+"%"});
                     drawPoster(canvas,doc); updatePlacement();
                 };
@@ -222,8 +276,18 @@
     }
     function preloadImages() {
         doc.sections.filter(s=>s.kind==="figure"&&s.imageData).forEach(s=>{
-            if(images.has(s.imageData))return;
-            const image=new Image(); images.set(s.imageData,image); image.onload=()=>renderPoster(); image.onerror=()=>message(`Unable to load ${s.title}. Replace its figure.`,true); image.src=s.imageData;
+            if(images.has(s.imageData)){
+                if(!s.figure_fitted&&images.get(s.imageData).naturalWidth&&(s.image_sizing||"proportional")==="proportional"){
+                    settleSection(s.id,fitFigureRect(s),true);changed();renderSteps();updatePlacement();
+                }
+                return;
+            }
+            const image=new Image(); images.set(s.imageData,image); image.onload=()=>{
+                const figures=doc.sections.filter(section=>section.kind==="figure"&&!section.figure_fitted&&section.imageData===s.imageData&&(section.image_sizing||"proportional")==="proportional");
+                figures.forEach(section=>{settleSection(section.id,fitFigureRect(section),true);doc.sections.find(item=>item.id===section.id).figure_fitted=true;});
+                if(figures.length){changed();renderSteps();updatePlacement();}
+                renderPoster();
+            }; image.onerror=()=>message(`Unable to load ${s.title}. Replace its figure.`,true); image.src=s.imageData;
         });
     }
     function aiDocument() {
@@ -264,7 +328,7 @@
     }
     function sectionDefaults(s) {return {...s,kind:"text",notes:"",text:"",caption:"",figure_description:"",font_size:28,approved:false,imageData:"",sources:s.sources||[]};}
     function acceptPlan(data) {
-        doc.sections=C.arrange(data.sections.map(sectionDefaults),doc.template);doc.plan_notes=data.notes||[];
+        doc.sections=arrangePoster(data.sections.map(sectionDefaults),doc.template);doc.plan_notes=data.notes||[];
         selected=doc.sections[0]?.id; changed();syncSetup();renderAll();message("Outline ready. Answer the first section’s question, then draft and approve its wording.");
     }
     $("setupForm").addEventListener("submit",async event=>{
@@ -287,7 +351,9 @@
     $("editSetup").addEventListener("click",()=>{syncSetup();$("setupForm").hidden=false;$("sectionEditor").hidden=true;});
     const edits={sectionPurposeInput:"purpose",sectionName:"title",sectionNotes:"notes",sectionText:"text",figureDescription:"figure_description",figureCaption:"caption"};
     Object.entries(edits).forEach(([id,key])=>$(id).addEventListener("input",()=>{
-        const s=current();if(!s)return;s[key]=$(id).value;s.approved=false;changed();approvalStatus();renderSteps();renderPoster();
+        const s=current();if(!s)return;s[key]=$(id).value;s.approved=false;
+        if(s.kind==="figure"&&key==="caption"&&(s.image_sizing||"proportional")==="proportional")settleSection(s.id,fitFigureRect(s),true);
+        changed();approvalStatus();renderSteps();renderPoster();
         if(key==="title")$("sectionTitle").textContent=s.title;
         if(key==="purpose")$("sectionPurpose").textContent=s.purpose;
     }));
@@ -313,10 +379,12 @@
     $("nextSection").addEventListener("click",()=>{const i=doc.sections.findIndex(s=>s.id===selected);selected=doc.sections[(i+1)%doc.sections.length]?.id;renderAll();});
     ["x","y","w","h"].forEach(k=>$("section"+k.toUpperCase()).addEventListener("change",()=>{
         const s=current(),value=Number($("section"+k.toUpperCase()).value);if(!s||!Number.isFinite(value))return;
-        settleSection(s.id,C.clampRect({...s.rect,[k]:value/100}));changed();updatePlacement();renderSteps();renderPoster();
+        let rect=C.clampRect({...s.rect,[k]:value/100});
+        if(s.kind==="figure"&&(s.image_sizing||"proportional")==="proportional"&&["w","h"].includes(k))rect=fitFigureRect(s,k==="w"?value/100:s.rect.w*(value/100)/s.rect.h);
+        settleSection(s.id,rect);changed();updatePlacement();renderSteps();renderPoster();
     }));
-    $("sectionFont").addEventListener("change",()=>{const s=current(),value=Number($("sectionFont").value);if(!s||!Number.isFinite(value))return;s.font_size=Math.max(16,Math.min(72,value));changed();renderPoster();});
-    function reorder(delta){const i=doc.sections.findIndex(s=>s.id===selected),j=i+delta;if(j<0||j>=doc.sections.length)return;[doc.sections[i],doc.sections[j]]=[doc.sections[j],doc.sections[i]];doc.sections=C.arrange(doc.sections,doc.template);changed();renderAll();}
+    $("sectionFont").addEventListener("change",()=>{const s=current(),value=Number($("sectionFont").value);if(!s||!Number.isFinite(value))return;s.font_size=Math.max(16,Math.min(72,value));if(s.kind==="figure"&&(s.image_sizing||"proportional")==="proportional")settleSection(s.id,fitFigureRect(s),true);changed();renderPoster();});
+    function reorder(delta){const i=doc.sections.findIndex(s=>s.id===selected),j=i+delta;if(j<0||j>=doc.sections.length)return;[doc.sections[i],doc.sections[j]]=[doc.sections[j],doc.sections[i]];doc.sections=arrangePoster(doc.sections,doc.template);changed();renderAll();}
     $("moveEarlier").addEventListener("click",()=>reorder(-1));$("moveLater").addEventListener("click",()=>reorder(1));
     function removeSection(id) {
         const index=doc.sections.findIndex(s=>s.id===id),s=doc.sections[index];
@@ -329,9 +397,23 @@
     function addSection(kind){
         if(doc.sections.length>=20){message("This poster already has 20 sections.",true);return;}
         const s={...sectionDefaults({id:crypto.randomUUID(),title:kind==="figure"?"Figure":"New section",purpose:kind==="figure"?"Show evidence and connect it to the poster’s message.":"Give this section a distinct purpose.",question:"What information should the reader take away?"}),kind};
-        doc.sections=C.arrange([...doc.sections,s],doc.template);selected=s.id;changed();syncSetup();renderAll();
+        doc.sections=arrangePoster([...doc.sections,s],doc.template);selected=s.id;changed();syncSetup();renderAll();
     }
     $("addTextSection").addEventListener("click",()=>addSection("text"));$("addFigure").addEventListener("click",()=>addSection("figure"));
+    $("showFigureTitle").addEventListener("change",()=>{
+        const s=current();if(!s)return;s.show_title=$("showFigureTitle").checked;
+        if((s.image_sizing||"proportional")==="proportional")settleSection(s.id,fitFigureRect(s));
+        changed();renderSteps();renderPoster();updatePlacement();
+    });
+    $("figureSizing").addEventListener("change",()=>{
+        const s=current();if(!s)return;s.image_sizing=$("figureSizing").value;
+        if(s.image_sizing==="proportional")settleSection(s.id,fitFigureRect(s));
+        changed();renderSteps();renderPoster();updatePlacement();
+    });
+    $("fitFigure").addEventListener("click",()=>{
+        const s=current();if(!s)return;s.image_sizing="proportional";$("figureSizing").value="proportional";
+        settleSection(s.id,fitFigureRect(s));changed();renderSteps();renderPoster();updatePlacement();
+    });
     $("figureFile").addEventListener("change",async event=>{
         const s=current(),file=event.target.files[0];if(!s||!file)return;
         try {
@@ -341,17 +423,17 @@
             const imageCanvas=document.createElement("canvas");imageCanvas.width=Math.round(bitmap.width*scale);imageCanvas.height=Math.round(bitmap.height*scale);imageCanvas.getContext("2d").drawImage(bitmap,0,0,imageCanvas.width,imageCanvas.height);bitmap.close();
             const data=imageCanvas.toDataURL("image/png");if(data.length>3*1024*1024)throw new Error("This figure is too large after resizing. Use a smaller PNG or JPEG.");
             if(doc.sections.reduce((total,section)=>total+(section===s?0:(section.imageData||"").length),data.length)>8*1024*1024)throw new Error("The poster's figures exceed the editable-draft size limit. Use smaller images before adding this figure.");
-            if(!doc.sections.includes(s))return;s.imageData=data;s.approved=false;changed();preloadImages();approvalStatus();renderPoster();if(current()===s){$("figureThumbnail").hidden=false;$("figureThumbnail").src=s.imageData;}message("Figure added. Describe what it shows, add its caption, and approve it.");
+            if(!doc.sections.includes(s))return;s.imageData=data;s.figure_fitted=false;s.approved=false;changed();preloadImages();approvalStatus();renderPoster();if(current()===s){$("figureThumbnail").hidden=false;$("figureThumbnail").src=s.imageData;}message("Figure added. Describe what it shows, add its caption, and approve it.");
         }catch(error){message(error.message,true);}finally{event.target.value="";}
     });
-    function switchTemplate(name){doc.template=name;doc.sections=C.arrange(doc.sections,name);changed();renderAll();message("Layout changed. Approved wording is unchanged; check fit and figure sizes.");}
+    function switchTemplate(name){doc.template=name;doc.sections=arrangePoster(doc.sections,name);changed();renderAll();message("Layout changed. Approved wording is unchanged; check fit and figure sizes.");}
     $("builderTemplate").addEventListener("change",()=>switchTemplate($("builderTemplate").value));
     $("builderZoom").addEventListener("change",fitStage);new ResizeObserver(fitStage).observe($("builderViewport"),{box:"border-box"});
     $("compareTemplates").addEventListener("click",()=>{
         $("templateOptions").replaceChildren();
         Object.entries(C.TEMPLATES).forEach(([id,template])=>{
             const option=node("article"),title=node("h3",template.name),preview=document.createElement("canvas");
-            const issues=drawPoster(preview,{...doc,template:id,sections:C.arrange(doc.sections,id)});
+            const issues=drawPoster(preview,{...doc,template:id,sections:arrangePoster(doc.sections,id)});
             const warnings=node("p",issues.length?`${issues.length} fit warnings — inspect before choosing.`:"No text overflow detected in this layout.");
             const choose=node("button","Use this layout");choose.type="button";choose.addEventListener("click",()=>{switchTemplate(id);$("templateDialog").close();});
             option.append(title,preview,warnings,choose);$("templateOptions").append(option);
@@ -464,7 +546,7 @@
         if(replacing)doc={...C.createDocument(),title:oldDoc.title,authors:oldDoc.authors,affiliations:oldDoc.affiliations,poster_type:oldDoc.poster_type,audience:oldDoc.audience,event_requirements:oldDoc.event_requirements,width_in:oldDoc.width_in,height_in:oldDoc.height_in,template:oldDoc.template};
         if($("articleUseMetadata").checked){doc.title=articleResult.title.slice(0,500);doc.authors=articleResult.authors.slice(0,2000);doc.affiliations=articleResult.affiliations.slice(0,3000);}
         const previous=doc.sections;
-        const layout=C.arrange([...previous,...additions],doc.template);
+        const layout=arrangePoster([...previous,...additions],doc.template);
         doc.sections=[...previous,...layout.slice(previous.length)];
         for(const added of additions){
             const s=doc.sections.find(s=>s.id===added.id);

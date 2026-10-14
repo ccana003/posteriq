@@ -48,3 +48,11 @@ test('unapproved figure placeholders also cause overlap warnings',()=>{
     const original=[section('a'),{...section('b'),approved:false,kind:'figure'}];
     assert.match(C.warnings({...C.createDocument(),sections:original}).join(' '),/overlaps/);
 });
+
+test('figure title and image sizing preferences survive editable draft restoration',()=>{
+    const d={...C.createDocument(),sections:[{...section('figure'),kind:'figure',show_title:true,image_sizing:'crop',figure_fitted:true,imageData:'data:image/png;base64,aGVsbG8='}]};
+    const restored=C.validateImport(d).sections[0];
+    assert.equal(restored.show_title,true);assert.equal(restored.image_sizing,'crop');assert.equal(restored.figure_fitted,true);
+    delete d.sections[0].show_title;delete d.sections[0].image_sizing;
+    const legacy=C.validateImport(d).sections[0];assert.equal(legacy.show_title,false);assert.equal(legacy.image_sizing,'proportional');
+});

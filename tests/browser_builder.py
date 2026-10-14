@@ -110,12 +110,31 @@ def main():
             page.locator('#figureDescription').fill('A diagram representing the supplied observations.')
             page.locator('#figureCaption').fill('Observed response in the supplied study.')
             page.locator('#approveSection').click()
+            # Figure names stay in the editor while headings default off on the poster.
+            assert not page.locator('#showFigureTitle').is_checked()
+            hidden_title=page.locator('#builderCanvas').evaluate('c=>c.toDataURL()')
+            page.locator('#showFigureTitle').check()
+            assert page.locator('#builderCanvas').evaluate('c=>c.toDataURL()')!=hidden_title
+            assert 'Approved and placed' in page.locator('#approvalStatus').inner_text()
+            page.locator('#showFigureTitle').uncheck()
+            page.locator('#figureSizing').select_option('crop')
+            assert 'crop mode' in page.locator('#layoutWarnings').inner_text()
+            page.locator('#figureSizing').select_option('stretch')
+            assert 'stretch mode' in page.locator('#layoutWarnings').inner_text()
+            page.locator('#fitFigure').click()
+            assert page.locator('#figureSizing').input_value()=='proportional'
+            assert 'crop mode' not in page.locator('#layoutWarnings').inner_text()
             # Save/restore includes approvals and the embedded figure.
             with page.expect_download() as download:
                 page.locator('#backupDraft').click()
             backup=json.loads(Path(download.value.path()).read_text())
             assert all(s['approved'] for s in backup['sections'])
-            assert backup['sections'][2]['imageData'].startswith('data:image/png;base64,')
+            figure=next(s for s in backup['sections'] if s['kind']=='figure')
+            assert figure['imageData'].startswith('data:image/png;base64,')
+            assert figure['image_sizing']=='proportional' and not figure['show_title']
+            image_width=figure['rect']['w']*1200-8
+            outer_height=figure['rect']['h']*1200*backup['height_in']/backup['width_in']
+            assert abs(outer_height-image_width*.6)<60  # 300x180 source image plus a short caption.
             page.wait_for_function('document.getElementById("saveStatus").textContent.startsWith("Saved")')
             page.reload()
             page.get_by_text('Draft restored from this device',exact=True).wait_for()

@@ -86,6 +86,8 @@ const PosterBuilderCore = (() => {
         if (document.sections.some(s => !s.approved)) result.push("Some sections are not approved and are shown as placeholders.");
         if (document.sections.some(s => s.font_size < 24)) result.push("Some body text is below the suggested 24-point starting size; check your applicable guidance.");
         for (const s of document.sections) {
+            if(s.kind==="figure"&&s.image_sizing==="crop")result.push(`${s.title}: crop mode can hide axes, labels or legends; inspect before sharing.`);
+            if(s.kind==="figure"&&s.image_sizing==="stretch")result.push(`${s.title}: stretch mode distorts image proportions; inspect before sharing.`);
             if (s.kind === "figure" && !s.caption.trim()) result.push(`${s.title}: add a caption.`);
             for (const other of document.sections) {
                 if (s.id >= other.id) continue;
@@ -122,6 +124,9 @@ const PosterBuilderCore = (() => {
             }
             if (!s.rect || !["x","y","w","h"].every(k => Number.isFinite(s.rect[k]))) throw new Error("A saved section has no usable position.");
             section.rect = clampRect(s.rect);
+            section.figure_fitted = s.figure_fitted === true;
+            section.show_title = s.kind !== "figure" || s.show_title === true;
+            section.image_sizing = ["proportional","crop","stretch"].includes(s.image_sizing) ? s.image_sizing : "proportional";
             section.font_size = Number.isFinite(s.font_size) ? Math.max(16,Math.min(72,s.font_size)) : 28;
             section.requirement_level = s.requirement_level === "required" ? "required" : "recommended";
             section.sources = Array.isArray(s.sources) ? s.sources.filter(r => r && ["reference_id","source","text"].every(k => typeof r[k] === "string" || r[k] === null)).slice(0,12) : [];
