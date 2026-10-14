@@ -9,7 +9,9 @@ from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.core.credentials import AzureKeyCredential
 from azure.storage.blob import BlobServiceClient, ContentSettings
 from openai import AzureOpenAI
+from article_import import extract_article, propose_article
 from poster_mockup import prepare_mockup
+from poster_builder import BuilderGenerationError, BuilderValidationError, make_plan, draft_section, review_document
 from knowledge_base import (
     load_guidance_records,
     search_guidance
@@ -1309,3 +1311,62 @@ def review_poster(req: func.HttpRequest) -> func.HttpResponse:
             mimetype="application/json",
             status_code=500
         )
+
+
+@app.route(route="builder/{action}", methods=["POST"])
+def poster_builder_action(req: func.HttpRequest) -> func.HttpResponse:
+    """Stateless AI actions; the browser owns the author's editable document."""
+    action = req.route_params.get("action")
+    if action == "article":
+        return import_builder_article(req)
+    handlers = {"plan": make_plan, "draft": draft_section, "review": review_document}
+    if action not in handlers:
+        return func.HttpResponse(json.dumps({"error": "Unknown builder action."}), status_code=404, mimetype="application/json")
+    try:
+        if len(req.get_body()) > 10 * 1024 * 1024:
+            raise BuilderValidationError("This poster request is too large. Use smaller figures.")
+        payload = req.get_json()
+        if not isinstance(payload, dict):
+            raise BuilderValidationError("A JSON object is required.")
+        try:
+            records = load_guidance_records()
+        except Exception:
+            records = []
+        result = handlers[action](get_openai_client(), os.environ["POSTERIQ_OPENAI_DEPLOYMENT"], payload, records)
+        return func.HttpResponse(json.dumps(result), mimetype="application/json", status_code=200)
+    except (BuilderValidationError, ValueError) as exc:
+        return func.HttpResponse(json.dumps({"error": str(exc)}), mimetype="application/json", status_code=400)
+    except BuilderGenerationError as exc:
+        return func.HttpResponse(json.dumps({"error": str(exc)}), mimetype="application/json", status_code=502)
+    except Exception as exc:
+        print(f"PosterIQ builder {action} error: {type(exc).__name__}")
+        return func.HttpResponse(json.dumps({"error": "The AI builder could not complete this step. Your draft is unchanged. Please retry or continue editing manually."}), mimetype="application/json", status_code=502)
+
+
+def import_builder_article(req: func.HttpRequest) -> func.HttpResponse:
+    """Read an article without storing its PDF or changing an existing poster."""
+    try:
+        if len(req.get_body()) > 26 * 1024 * 1024:
+            raise BuilderValidationError("Upload an article PDF of at most 25 MB.")
+        upload = req.files.get("file")
+        if not upload:
+            raise BuilderValidationError("Choose an article PDF to upload.")
+        filename = upload.filename or "article.pdf"
+        try:
+            pdf_bytes = upload.read()
+        finally:
+            upload.close()
+        article = extract_article(pdf_bytes, filename)
+        if article['needs_ocr']:
+            raise BuilderValidationError("This PDF has too little searchable text. Use a searchable/OCR version of the article, or start with your own source notes.")
+        try:
+            records = load_guidance_records()
+        except Exception:
+            records = []
+        result = propose_article(get_openai_client(), os.environ["POSTERIQ_OPENAI_DEPLOYMENT"], article, dict(req.form), records)
+        return func.HttpResponse(json.dumps(result), mimetype="application/json", status_code=200)
+    except (BuilderValidationError, BuilderGenerationError) as exc:
+        return func.HttpResponse(json.dumps({"error": str(exc)}), mimetype="application/json", status_code=400)
+    except Exception as exc:
+        print(f"PosterIQ article import error: {type(exc).__name__}")
+        return func.HttpResponse(json.dumps({"error": "The article could not be drafted. Your existing poster is unchanged. Please retry or continue from your own notes."}), mimetype="application/json", status_code=502)

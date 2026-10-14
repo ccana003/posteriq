@@ -117,3 +117,58 @@ Document Intelligence, Storage, OpenAI or review quality.
 The mockup uses the same API origin as the existing frontend. If its image or
 download fails, check the Function App's existing CORS configuration for the
 frontend's exact origin, without replacing other allowed origins.
+
+## Testing the poster builder before merging
+
+The builder is a new page at `/builder.html`. Its AI actions need the latest
+Function App deployment, not just the new frontend preview.
+
+1. In the builder PR, open the successful **Build Azure Functions deployment ZIP**
+   workflow. Download the **posteriq-azure-deployment** artifact.
+2. Extract the downloaded outer ZIP once. Manually deploy the inner
+   **posteriq-api-deploy.zip**, still zipped, using the existing Function App
+   manual deployment process. This updates the shared backend; the existing PDF
+   endpoints are retained.
+3. In Function App **CORS**, add the new PR preview's exact origin (no trailing
+   slash). Keep the production origin and other allowed origins. The new PR has
+   a different preview origin from PR #1.
+4. Open the PR preview, choose **Build a poster**, and hard-refresh if necessary.
+5. Create an outline using representative source notes, draft/approve sections,
+   upload a figure and caption, compare layouts, and review the assembled poster.
+   Check that moving between layouts leaves approved wording unchanged.
+6. Save an editable JSON draft, reload and restore it, then download the mockup
+   PNG. Test the existing PDF review path as well.
+
+The same OpenAI deployment and curated knowledge store are used; no new secrets
+or services are needed. Until the new backend is deployed, manual authoring and
+saved drafts work, but AI builder actions will report that the API is unavailable.
+The organization's actual templates have not been supplied: both included layouts
+are explicitly provisional. Only merge after testing the live AI output and
+required-element guidance. Merging deploys the static site; it does not upload
+the Function App ZIP automatically.
+
+### Testing article-assisted building in PR #2
+
+Deploy the latest inner Function App ZIP from this PR again to enable the new
+article action. The preview URL and its existing CORS entry stay the same.
+Hard-refresh the preview, open Build a poster, expand **Start from an article
+PDF**, choose a searchable publication and describe the poster's focus. Review
+proposed text and page excerpts, select drafts, then choose whether to start a
+new poster or append to the current one. Verify existing approved text and
+placement are retained when appending. Every imported section needs approval;
+image candidates also need their captions and descriptions before approval.
+
+
+### Section removal, automatic layout and article figures
+
+The latest PR #2 update makes Remove section visible in the main section actions
+and adds × controls beside each section in the list. Drag into another region,
+release and verify the board makes room without overlaps (including unapproved
+placeholders). On a full board it may reorder into template slots; check overflow
+warnings afterward. Wording, approval and font size do not change during reflow.
+
+Deploy the latest backend ZIP to test enhanced article figure detection, then run
+a new article proposal. Caption-linked raster and vector figures should be selected
+as draft figure sections, with source pages and original captions. Verify complete
+panels/axes/legends and caption accuracy before approving. Detection is best effort;
+manual figure upload and replacement remain available.
