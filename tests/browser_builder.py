@@ -49,6 +49,9 @@ def main():
             page.locator('#posterAffiliations').fill('University')
             page.locator('#posterAudience').fill('Clinical researchers')
             page.locator('#planPoster').click()
+            page.locator('#draftSection').click()
+            assert 'Add source notes above first' in page.locator('#draftStatus').inner_text()
+            assert not any(url.endswith('/draft') for url,_ in captured)
             page.locator('#sectionNotes').fill('Enrollment was 120 participants. Estimates remain uncertain.')
             placeholder=page.locator('#builderCanvas').evaluate('canvas=>canvas.toDataURL()')
             page.locator('#draftSection').click()
@@ -93,7 +96,7 @@ def main():
             image_page.insert_text((30,165),'Observed response')
             png=image_page.get_pixmap().tobytes('png');image_doc.close()
             page.locator('#figureFile').set_input_files({'name':'figure.png','mimeType':'image/png','buffer':png})
-            page.get_by_text('Figure added. Describe what it shows, add its caption, and approve it.',exact=True).wait_for()
+            page.wait_for_function('document.getElementById("builderMessage").textContent.startsWith("Figure added.")')
             page.locator('#figureDescription').fill('A diagram representing the supplied observations.')
             page.locator('#figureCaption').fill('Observed response in the supplied study.')
             page.locator('#approveSection').click()
@@ -116,10 +119,16 @@ def main():
             page.locator('#draftSection').click()
             page.wait_for_timeout(100)
             assert held
+            assert page.locator('#draftSection').inner_text()=='Drafting…'
+            assert page.locator('#draftSection').is_disabled()
+            assert 'Please wait' in page.locator('#draftStatus').inner_text()
             page.locator('#sectionNotes').fill('Enrollment was 120 participants. Estimates remain uncertain. Updated source notes.')
             held[0].fulfill(json={'text':'STALE RESPONSE','questions':[],'editorial_notes':[]})
             page.wait_for_function('document.getElementById("builderMessage").textContent.includes("response was not applied")')
             assert page.locator('#sectionText').input_value()==original_text
+            assert 'response was not applied' in page.locator('#draftStatus').inner_text()
+            assert page.locator('#draftSection').inner_text()=='Draft concise poster text'
+            assert not page.locator('#draftSection').is_disabled()
             page.unroute('**/api/builder/draft',hold)
             page.locator('#approveSection').click()
             # A backend that has not been deployed leaves the poster intact.
@@ -131,7 +140,7 @@ def main():
             page.unroute('**/api/builder/review',absent)
             # Imported backups preserve content and embedded figures too.
             page.locator('#importDraft').set_input_files({'name':'draft.json','mimeType':'application/json','buffer':json.dumps(backup).encode()})
-            page.get_by_text('Editable draft opened.',exact=True).wait_for()
+            page.wait_for_function('document.getElementById("builderMessage").textContent === "Editable draft opened."')
             page.locator('#checkPoster').click()
             page.locator('#consistencyResults').wait_for(state='visible')
             assert captured[-1][1]['poster_image'].startswith('data:image/png;base64,')

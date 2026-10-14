@@ -12,6 +12,10 @@ BASE_SECTIONS = {
     'narrative': [('Scope and purpose', 'Define the question and scope.'), ('Background', 'Explain the problem without repeating the purpose.'), ('Evidence and approach', 'Describe supplied evidence and how it was selected.'), ('Synthesis and takeaway', 'Explain the synthesis, uncertainty and final message.'), ('References and acknowledgments', 'Supply citations, credits, funding and disclosures as applicable.')],
 }
 
+class BuilderGenerationError(RuntimeError):
+    """A safe, author-facing explanation for an unusable model response."""
+
+
 class BuilderValidationError(ValueError):
     pass
 
@@ -49,7 +53,7 @@ def complete(client, deployment, name, prompt, context, schema, tokens=5000, ima
         max_completion_tokens=tokens)
     choice = response.choices[0]
     if choice.finish_reason != 'stop' or not choice.message.content:
-        raise RuntimeError('The AI response was incomplete. Your saved poster has not changed; try again.')
+        raise BuilderGenerationError('The AI response was incomplete. Your saved poster has not changed; try again.')
     return json.loads(choice.message.content)
 
 
@@ -186,7 +190,7 @@ version cannot fit. Leave every other section unchanged. Nothing is author-appro
       'curated_guidance': guidance_context(records)}, schema)
     result['text'] = text(result.get('text'), 12000)
     if _numeric_tokens(result['text']) - _numeric_tokens(section['notes']):
-        raise RuntimeError('The draft introduced numerical content not present in your notes. It was not applied; please retry or edit manually.')
+        raise BuilderGenerationError('The draft introduced numerical content not present in your notes. It was not applied; please retry or edit manually.')
     return result
 
 

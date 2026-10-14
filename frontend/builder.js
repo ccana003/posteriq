@@ -7,7 +7,13 @@
     let doc = C.createDocument(), selected = null, db = null, busy = false, saving = false, saveTimer, reviewRevision = null, storageUnsaved = false, backupRevision = -1;
     const images = new Map();
     const canvas = $("builderCanvas"), stage = $("builderStage");
-    function message(text, error = false) { $("builderMessage").textContent = text; $("builderMessage").classList.toggle("error", error); }
+    function message(text, error = false) {
+        for (const id of ["builderMessage", "draftStatus", "planStatus"]) {
+            const target = $(id);
+            target.textContent = text;
+            target.classList.toggle("error", error);
+        }
+    }
     function current() { return doc.sections.find(s => s.id === selected); }
     function changed() {
         doc.revision++;
@@ -78,6 +84,7 @@
         if(s.imageData) $("figureThumbnail").src = s.imageData;
         else $("figureThumbnail").removeAttribute("src");
         $("draftQuestions").replaceChildren();
+        $("draftStatus").textContent = busy ? "An AI step is in progress. Please wait…" : "";
         updatePlacement(); approvalStatus();
     }
     function approvalStatus() {
@@ -204,10 +211,16 @@
     async function request(action, payload) {
         if(busy)throw new Error("Please wait for the current AI step to finish.");
         busy=true; const revision=doc.revision; const generation=doc;
-        message(action==="review"?"Reviewing the assembled poster, figures and captions…":"Working from your supplied information…");
+        message(action==="draft"?"Drafting concise text from your source notes. Please wait…":action==="review"?"Reviewing the assembled poster, figures and captions…":"Working from your supplied information…");
         const buttons=[$("planPoster"),$("draftSection"),$("checkPoster")];buttons.forEach(b=>b.disabled=true);
+        const actionButton = action === "draft" ? $("draftSection") : action === "plan" ? $("planPoster") : $("checkPoster");
+        const buttonLabel = actionButton.textContent;
+        actionButton.textContent = action === "draft" ? "Drafting…" : action === "plan" ? "Creating outline…" : "Reviewing…";
+        actionButton.setAttribute("aria-busy", "true");
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 120000);
         try {
-            const response=await fetch(`${API}/builder/${action}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+            const response=await fetch(`${API}/builder/${action}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload),signal:controller.signal});
             if(response.status===404)throw new Error("The builder API is not deployed yet. Deploy the latest Function App ZIP, then retry this step.");
             let data;
             try { data=await response.json(); } catch { throw new Error("The builder received an unexpected server response. Your saved draft is unchanged."); }
@@ -215,9 +228,15 @@
             if(doc!==generation||doc.revision!==revision||(action==="draft"&&selected!==payload.section_id))throw new Error("Your poster changed while the AI was working. The response was not applied; retry using your latest content.");
             return data;
         } catch(error) {
+            if(error.name === "AbortError")throw new Error("The AI step took too long. Your draft is unchanged. Please retry in a moment.");
             if(error instanceof TypeError)throw new Error("Could not reach the AI builder. Check the Function App deployment and its CORS entry for this website. Your draft is unchanged.");
             throw error;
-        } finally {busy=false;buttons.forEach(b=>b.disabled=false);}
+        } finally {
+            clearTimeout(timeout);
+            actionButton.textContent = buttonLabel;
+            actionButton.removeAttribute("aria-busy");
+            busy=false;buttons.forEach(b=>b.disabled=false);
+        }
     }
     function sectionDefaults(s) {return {...s,kind:"text",notes:"",text:"",caption:"",figure_description:"",font_size:28,approved:false,imageData:"",sources:s.sources||[]};}
     function acceptPlan(data) {
@@ -250,6 +269,11 @@
     }));
     $("draftSection").addEventListener("click",async()=>{
         const s=current();if(!s)return;
+        if (!s.notes.trim()) {
+            message("Add source notes above first. Paste the facts or paragraph you want condensed, then click Draft concise poster text.", true);
+            $("sectionNotes").focus();
+            return;
+        }
         try {
             const data=await request("draft",{document:aiDocument(),section_id:s.id});
             if(data.text){s.text=data.text;s.approved=false;changed();$("sectionText").value=s.text;approvalStatus();renderSteps();renderPoster();}

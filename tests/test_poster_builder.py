@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import azure.functions as func
 import function_app
-from poster_builder import BuilderValidationError, draft_section, make_plan, review_document
+from poster_builder import BuilderGenerationError, BuilderValidationError, draft_section, make_plan, review_document
 
 
 def document():
@@ -79,6 +79,15 @@ class BuilderTests(unittest.TestCase):
         self.assertEqual(function_app.poster_builder_action(request).status_code,404)
         request = func.HttpRequest(method='POST',url='/api/builder/plan',body=b'[]',route_params={'action':'plan'})
         self.assertEqual(function_app.poster_builder_action(request).status_code,400)
+
+    def test_rejected_ai_draft_returns_safe_author_facing_explanation(self):
+        req = func.HttpRequest(method='POST',url='/api/builder/draft',body=b'{}',route_params={'action':'draft'})
+        with patch.object(function_app,'get_openai_client'),patch.object(function_app,'load_guidance_records',return_value=[]), \
+             patch.object(function_app,'draft_section',side_effect=BuilderGenerationError('The draft introduced numerical content not present in your notes.')), \
+             patch.dict('os.environ',{'POSTERIQ_OPENAI_DEPLOYMENT':'test'}):
+            response = function_app.poster_builder_action(req)
+        self.assertEqual(response.status_code,502)
+        self.assertIn('numerical content',json.loads(response.get_body())['error'])
 
     def test_ai_failure_is_recoverable_and_does_not_leak_details(self):
         req = func.HttpRequest(method='POST',url='/api/builder/plan',body=b'{"poster_type":"protocol"}',route_params={'action':'plan'})
