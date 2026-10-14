@@ -106,8 +106,13 @@
         const width = 1200, height = Math.round(width * document.height_in / document.width_in);
         target.width = width; target.height = height;
         const ctx = target.getContext("2d"), issues = [];
+        const theme = getComputedStyle(window.document.documentElement);
+        const green = theme.getPropertyValue("--brand-green").trim() || "#005030";
+        const orange = theme.getPropertyValue("--brand-orange").trim() || "#f47321";
+        const tint = theme.getPropertyValue("--brand-tint").trim() || "#f2f7f4";
         ctx.fillStyle = "white"; ctx.fillRect(0,0,width,height);
-        ctx.fillStyle = "#073e52"; ctx.fillRect(0,0,width,height*.155);
+        ctx.fillStyle = green; ctx.fillRect(0,0,width,height*.155);
+        ctx.fillStyle = orange; ctx.fillRect(0,height*.155,width,6);
         ctx.fillStyle = "white"; ctx.font = "bold 32px Arial"; ctx.textBaseline = "top";
         const titles = C.wrap(ctx, document.title || "Your poster title", width-60);
         if (titles.length > 2) issues.push("The title overflows its header. Shorten it before export.");
@@ -120,13 +125,14 @@
         document.sections.forEach(s => {
             const r = {x:s.rect.x*width,y:s.rect.y*height,w:s.rect.w*width,h:s.rect.h*height};
             ctx.save(); ctx.beginPath(); ctx.rect(r.x,r.y,r.w,r.h); ctx.clip();
-            ctx.fillStyle = "#e8f3f3"; ctx.fillRect(r.x,r.y,r.w,r.h);
+            ctx.fillStyle = tint; ctx.fillRect(r.x,r.y,r.w,r.h);
             const pad = 12, headingSize = Math.max(12, s.font_size*1.2*width/(document.width_in*72));
-            ctx.fillStyle = "#075963"; ctx.font = `bold ${headingSize}px Arial`;
+            ctx.fillStyle = green; ctx.font = `bold ${headingSize}px Arial`;
             const heads = C.wrap(ctx,s.title,r.w-pad*2), headH=heads.length*(headingSize*1.2)+pad*2;
             heads.forEach((line,i)=>ctx.fillText(line,r.x+pad,r.y+pad+i*headingSize*1.2));
+            ctx.fillStyle = orange; ctx.fillRect(r.x,r.y,4,headH);
             const font = s.font_size*width/(document.width_in*72), lineH=font*1.25;
-            ctx.font = `${font}px Arial`; ctx.fillStyle = "#183c49";
+            ctx.font = `${font}px Arial`; ctx.fillStyle = "#253746";
             let y = r.y+headH;
             if (!s.approved) { ctx.fillStyle = "#657a83"; ctx.fillText("Awaiting author approval",r.x+pad,y); ctx.restore(); return; }
             let body = s.text;

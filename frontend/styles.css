@@ -1,4 +1,7 @@
 :root {
+    --brand-green: #005030;
+    --brand-orange: #f47321;
+    --brand-tint: #f2f7f4;
     --navy: #17324d;
     --navy-dark: #10263a;
     --teal: #087f8c;
@@ -2905,4 +2908,17 @@ body.poster-viewer-open { overflow: hidden; }
     .viewer-original .viewer-body { grid-template-rows: minmax(0, 1fr); }
     .viewer-sidebar { border-left: 0; border-top: 1px solid var(--border); }
     .download-status { padding-left: 12px; padding-right: 12px; }
+}
+
+/* Shared institutional navigation on review, builder and guidance pages. */
+.site-header .header-inner { gap: 20px; flex-wrap: wrap; padding-top: 18px; padding-bottom: 18px; }
+.site-header .institutional-brand { flex-shrink: 0; }
+.site-header .header-actions { flex-wrap: wrap; }
+.site-header .knowledge-manager-link { color: var(--brand-green); }
+.site-header .knowledge-manager-link[aria-current="page"] { text-decoration: underline; text-decoration-color: var(--brand-orange); text-decoration-thickness: 3px; text-underline-offset: 6px; }
+@media (max-width: 700px) {
+    .site-header .header-inner { padding: 16px 18px; gap: 18px; }
+    .site-header .institutional-brand { gap: 12px; }
+    .site-header .ctsi-logo { width: min(42vw, 175px); }
+    .site-header .header-actions { gap: 18px; }
 }

@@ -1,9 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PosterIQ | Build a poster</title><link rel="stylesheet" href="styles.css?v=9"><link rel="stylesheet" href="builder.css?v=1"></head>
+<title>PosterIQ | Build a poster</title><link rel="stylesheet" href="styles.css?v=10"><link rel="stylesheet" href="builder.css?v=2">    <link rel="icon" type="image/svg+xml" sizes="any" href="assets/favicon.svg?v=1">
+    <meta name="theme-color" content="#005030">
+</head>
 <body class="builder-page">
-<header class="site-header"><div class="header-inner"><a class="brand" href="index.html"><strong>Poster<span>IQ</span></strong></a><nav class="header-actions"><a href="builder.html" aria-current="page">Build a poster</a><a href="index.html">Review a PDF</a><a href="knowledge.html">Guidance</a></nav></div></header>
+    <header class="site-header">
+        <div class="header-inner">
+            <a href="index.html" class="brand institutional-brand" aria-label="PosterIQ home">
+                <img src="assets/ctsi-logo.jpg" alt="Miami Clinical and Translational Science Institute" class="ctsi-logo">
+                <span class="brand-divider" aria-hidden="true"></span>
+                <span class="product-brand"><strong>Poster<span>IQ</span></strong><small>Research Poster Tools</small></span>
+            </a>
+            <nav class="header-actions" aria-label="Main navigation">
+                <a href="builder.html" class="knowledge-manager-link" aria-current="page">Build a poster</a>
+                <a href="index.html" class="knowledge-manager-link">Review a PDF</a>
+                <a href="knowledge.html" class="knowledge-manager-link">Guidance</a>
+                <span class="header-badge"><span class="header-badge-dot" aria-hidden="true"></span>Research Tool</span>
+            </nav>
+        </div>
+    </header>
 <main class="builder-main">
 <div class="builder-heading"><div><p class="eyebrow">Create with your evidence</p><h1>Build your poster</h1><p>Share your information one section at a time. Review the wording, approve it, and watch your poster take shape.</p></div><span id="saveStatus" role="status">Opening saved draft…</span></div>
 <div class="builder-toolbar"><label>Layout <select id="builderTemplate"><option value="three">Three columns · provisional</option><option value="two">Two columns · provisional</option></select></label><label>Zoom <select id="builderZoom"><option value="fit">Fit poster</option><option value="1">100%</option><option value="1.5">150%</option><option value="2">200%</option></select></label><button id="compareTemplates" type="button">Compare layouts</button><button id="downloadPoster" type="button">Download mockup PNG</button><button id="backupDraft" type="button">Save editable draft</button><label class="builder-file-button">Open draft<input id="importDraft" type="file" accept=".json,application/json"></label></div>
@@ -21,5 +37,5 @@
 <section id="consistencyResults" class="builder-review" hidden aria-label="Assembled poster review"><h2>Poster consistency review</h2><p id="reviewStale" role="status"></p><div id="consistencyContent"></div></section>
 </main>
 <dialog id="templateDialog" class="builder-template-dialog"><h2>Compare provisional layouts</h2><p>The same approved wording and figures appear in both layouts. Choosing one rearranges sections; it does not rewrite content. Check text fit after switching.</p><div id="templateOptions"></div><button id="closeTemplateDialog" type="button">Close comparison</button></dialog>
-<script src="builder-core.js?v=1"></script><script src="builder.js?v=2"></script>
+<script src="builder-core.js?v=1"></script><script src="builder.js?v=3"></script>
 </body></html>
