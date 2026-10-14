@@ -146,3 +146,14 @@ The organization's actual templates have not been supplied: both included layout
 are explicitly provisional. Only merge after testing the live AI output and
 required-element guidance. Merging deploys the static site; it does not upload
 the Function App ZIP automatically.
+
+### Testing article-assisted building in PR #2
+
+Deploy the latest inner Function App ZIP from this PR again to enable the new
+article action. The preview URL and its existing CORS entry stay the same.
+Hard-refresh the preview, open Build a poster, expand **Start from an article
+PDF**, choose a searchable publication and describe the poster's focus. Review
+proposed text and page excerpts, select drafts, then choose whether to start a
+new poster or append to the current one. Verify existing approved text and
+placement are retained when appending. Every imported section needs approval;
+image candidates also need their captions and descriptions before approval.

@@ -166,3 +166,34 @@ python tests/browser_mockup.py
 The browser checks use deterministic AI fixtures, so they validate UI behavior
 and data handling without claiming to validate live AI quality. GitHub Actions
 runs both browser workflows in Chromium as well as deployment-package checks.
+
+### Start from an article PDF
+
+The builder also offers **Start from an article PDF** alongside starting from
+scratch. Upload a searchable PDF (25 MB, 40 pages and 120,000 extracted characters
+maximum), set a focus, and use the poster type, audience and organizer requirements
+from Poster details. The AI proposes concise sections with exact PDF page numbers,
+source excerpts and suggested article metadata. Nothing enters the poster until
+the author selects drafts and chooses **Add selected drafts to builder**.
+
+Choose a new poster or append to an existing one. Appending retains existing
+wording, approvals, metadata and placement unless the author explicitly selects
+metadata replacement. New drafts are unapproved, with source text in their notes
+and original excerpts available under Article source. Source references survive
+IndexedDB saves and editable JSON export/import. Appended sections may overlap
+existing regions: inspect layout warnings and arrange them before export.
+
+Up to eight embedded raster image regions are offered as unchecked candidates.
+Their completeness and captions are not inferred or verified. Supply the original
+caption/description and approve manually; use Add figure for vector figures or
+poor crops. Scanned/image-only PDFs are explicitly rejected with guidance to use
+a searchable/OCR version. The uploaded PDF is processed transiently rather than
+stored in Blob Storage; retained excerpts and selected images save locally with
+the editable poster. The article proposal uses the existing OpenAI deployment.
+
+`POST /api/builder/article` accepts multipart form data (`file`, `focus`,
+`poster_type`, `audience`, `event_requirements`) through the existing builder
+Function. Deploy the latest ZIP, which includes `article_import.py`, before
+trying this action. Existing PDF review and from-scratch builder flows remain
+available. Automated source/number checks do not establish scientific validity;
+verify the proposed text against the publication before approving.

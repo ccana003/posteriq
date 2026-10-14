@@ -56,3 +56,12 @@
 @media (max-width: 800px) { .builder-preview { position: static; } .builder-main { padding: 14px; } .builder-workspace { grid-template-columns: minmax(0, 1fr); } .builder-progress ol { display: flex; flex-wrap: wrap; gap: 8px; } .builder-progress li { flex: 1 0 140px; } .builder-heading { flex-direction: column; align-items: start; gap: 0; } #templateOptions { grid-template-columns: 1fr; } .builder-placement { grid-template-columns: 1fr 1fr; } }
 
 #figureThumbnail { display: block; max-width: 100%; max-height: 280px; object-fit: contain; margin: 14px 0; border: 1px solid #d9e4e8; }
+
+#articleImport { background: var(--brand-tint); }
+#articleForm { display: grid; gap: 12px; margin-top: 16px; }
+.article-checkbox { display: flex !important; flex-direction: row !important; align-items: center; gap: 10px; margin: 12px 0; }
+.article-draft { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 12px 0; }
+.article-draft pre { white-space: pre-wrap; font: inherit; }
+.article-figures { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 14px; }
+.article-figure { padding: 12px; background: white; border: 1px solid var(--border); }
+.article-figure img { max-width: 100%; max-height: 220px; object-fit: contain; }

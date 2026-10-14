@@ -31,9 +31,13 @@ def main():
             page.on('pageerror',lambda error:errors.append(str(error)))
             page.on('dialog',lambda dialog:dialog.accept())
             def ai(route):
+                action=route.request.url.rsplit('/',1)[-1]
+                if action=='article':
+                    route.fulfill(json={'title':'Article title','authors':'Article authors','affiliations':'Article institute','citation':'Article citation','source_filename':'paper.pdf','page_count':2,
+                        'sections':[{'title':'Article findings','purpose':'Report the supported observation','text':'Enrollment: 120 participants.','notes':'The study enrolled 120 participants.','source_filename':'paper.pdf','source_excerpts':[{'page':2,'block_id':'p2-b1','text':'The study enrolled 120 participants.'}]}], 'figures':[], 'questions':[], 'limitations':['Verify scientific meaning.']})
+                    return
                 payload=route.request.post_data_json
                 captured.append((route.request.url,payload))
-                action=route.request.url.rsplit('/',1)[-1]
                 if action=='plan':
                     result={'sections':[{'id':'section-1','title':'Background','purpose':'Explain the problem.','question':'What problem does your study address?','requirement_level':'recommended','sources':[]}, {'id':'section-2','title':'Conclusion','purpose':'State the takeaway.','question':'What is the supported takeaway?','requirement_level':'recommended','sources':[]}], 'notes':['Fixture guidance is a suggested starting point.'],'guidance_available':False}
                 elif action=='draft':
@@ -158,9 +162,46 @@ def main():
             page.set_viewport_size({'width':390,'height':844})
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
             page.screenshot(path='/tmp/posteriq-builder-mobile.png',full_page=True)
+            # Article imports are proposals first, and append without changing existing approvals or positions.
+            page.set_viewport_size({'width':1440,'height':1100})
+            with page.expect_download() as download:
+                page.locator('#backupDraft').click()
+            before_article=json.loads(Path(download.value.path()).read_text())
+            page.locator('#articleImport summary').first.click()
+            page.locator('#articleFile').set_input_files({'name':'paper.pdf','mimeType':'application/pdf','buffer':b'%PDF-fixture'})
+            page.locator('#articleFocus').fill('The principal finding for clinicians')
+            page.locator('#analyzeArticle').click()
+            page.locator('#articleProposals').wait_for(state='visible')
+            assert page.locator('#sectionSteps li').count()==3
+            assert not page.locator('#articleUseMetadata').is_checked()
+            page.locator('#applyArticle').click()
+            assert page.locator('#sectionSteps li').count()==4
+            assert page.locator('#sectionText').input_value()=='Enrollment: 120 participants.'
+            assert 'Draft —' in page.locator('#approvalStatus').inner_text()
+            assert 'Page 2' in page.locator('#sectionSources').text_content()
+            with page.expect_download() as download:
+                page.locator('#backupDraft').click()
+            after_article=json.loads(Path(download.value.path()).read_text())
+            assert after_article['sections'][:3]==before_article['sections']
+            assert after_article['title']==before_article['title']
+            assert after_article['sections'][3]['source_excerpts'][0]['page']==2
+            page.wait_for_function('document.getElementById("saveStatus").textContent.startsWith("Saved")')
+            page.reload();page.get_by_text('Draft restored from this device',exact=True).wait_for()
+            page.locator('#sectionSteps button').last.click()
+            assert 'Page 2' in page.locator('#sectionSources').text_content()
+            # The additional route can also start a fresh poster, without the guided-outline step.
+            page.locator('#newPoster').click()
+            page.locator('#articleImport summary').first.click()
+            page.locator('#articleFile').set_input_files({'name':'paper.pdf','mimeType':'application/pdf','buffer':b'%PDF-fixture'})
+            page.locator('#analyzeArticle').click();page.locator('#articleProposals').wait_for(state='visible')
+            assert page.locator('#articleImportMode').input_value()=='new'
+            page.locator('#applyArticle').click()
+            assert page.locator('#sectionSteps li').count()==1
+            assert page.locator('#sectionText').input_value()=='Enrollment: 120 participants.'
+            assert 'Draft —' in page.locator('#approvalStatus').inner_text()
             assert not errors, errors
             browser.close()
-        print('Builder browser checks passed: guided AI drafting, approvals, template stability, drag, figure upload, local restore, review image, explicit suggestion approval, PNG export and mobile layout.')
+        print('Builder browser checks passed: guided AI drafting, approvals, template stability, drag, figure upload, local restore, review image, explicit suggestion approval, PNG export, mobile layout, and source-linked article import (new and existing posters).')
     finally:
         server.shutdown();server.server_close()
 

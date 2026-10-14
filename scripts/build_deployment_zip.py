@@ -11,7 +11,7 @@ import zipfile
 
 
 BACKEND_FILES = (
-    "function_app.py", "knowledge_base.py", "poster_mockup.py", "poster_builder.py",
+    "function_app.py", "knowledge_base.py", "poster_mockup.py", "poster_builder.py", "article_import.py",
     "host.json", "requirements.txt", "schemas/review.schema.json",
 )
 

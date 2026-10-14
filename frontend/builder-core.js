@@ -85,6 +85,8 @@ const PosterBuilderCore = (() => {
             section.font_size = Number.isFinite(s.font_size) ? Math.max(16,Math.min(72,s.font_size)) : 28;
             section.requirement_level = s.requirement_level === "required" ? "required" : "recommended";
             section.sources = Array.isArray(s.sources) ? s.sources.filter(r => r && ["reference_id","source","text"].every(k => typeof r[k] === "string" || r[k] === null)).slice(0,12) : [];
+            section.source_filename = typeof s.source_filename === "string" ? s.source_filename.slice(0,200) : "";
+            section.source_excerpts = Array.isArray(s.source_excerpts) ? s.source_excerpts.filter(e => e && Number.isInteger(e.page) && e.page > 0 && e.page <= 40 && typeof e.text === "string" && e.text.length <= 12000 && typeof e.block_id === "string").slice(0,12) : [];
             section.imageData = "";
             if (s.kind === "figure" && s.imageData) {
                 if (typeof s.imageData !== "string" || s.imageData.length > 3*1024*1024 || !/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(s.imageData)) throw new Error("A saved figure must be a small embedded PNG or JPEG.");

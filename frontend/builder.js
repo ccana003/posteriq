@@ -6,6 +6,7 @@
     const node = (tag, text, className) => { const n = document.createElement(tag); if (text != null) n.textContent = text; if (className) n.className = className; return n; };
     let doc = C.createDocument(), selected = null, db = null, busy = false, saving = false, saveTimer, reviewRevision = null, storageUnsaved = false, backupRevision = -1;
     const images = new Map();
+    let articleResult = null;
     const canvas = $("builderCanvas"), stage = $("builderStage");
     function message(text, error = false) {
         for (const id of ["builderMessage", "draftStatus", "planStatus"]) {
@@ -83,6 +84,14 @@
         $("figureThumbnail").hidden = !s.imageData;
         if(s.imageData) $("figureThumbnail").src = s.imageData;
         else $("figureThumbnail").removeAttribute("src");
+        if (s.source_excerpts?.length) {
+            const evidence = node("details"), heading = node("summary", `Article source: ${s.source_filename || "Uploaded article"}`);
+            evidence.append(heading);
+            s.source_excerpts.forEach(excerpt => {
+                evidence.append(node("strong", `Page ${excerpt.page} · ${excerpt.block_id}`), node("p", excerpt.text));
+            });
+            $("sectionSources").append(evidence);
+        }
         $("draftQuestions").replaceChildren();
         $("draftStatus").textContent = busy ? "An AI step is in progress. Please wait…" : "";
         updatePlacement(); approvalStatus();
@@ -218,15 +227,15 @@
         if(busy)throw new Error("Please wait for the current AI step to finish.");
         busy=true; const revision=doc.revision; const generation=doc;
         message(action==="draft"?"Drafting concise text from your source notes. Please wait…":action==="review"?"Reviewing the assembled poster, figures and captions…":"Working from your supplied information…");
-        const buttons=[$("planPoster"),$("draftSection"),$("checkPoster")];buttons.forEach(b=>b.disabled=true);
-        const actionButton = action === "draft" ? $("draftSection") : action === "plan" ? $("planPoster") : $("checkPoster");
+        const buttons=[$("planPoster"),$("draftSection"),$("checkPoster"),$("analyzeArticle")];buttons.forEach(b=>b.disabled=true);
+        const actionButton = action === "article" ? $("analyzeArticle") : action === "draft" ? $("draftSection") : action === "plan" ? $("planPoster") : $("checkPoster");
         const buttonLabel = actionButton.textContent;
-        actionButton.textContent = action === "draft" ? "Drafting…" : action === "plan" ? "Creating outline…" : "Reviewing…";
+        actionButton.textContent = action === "article" ? "Reading and drafting article…" : action === "draft" ? "Drafting…" : action === "plan" ? "Creating outline…" : "Reviewing…";
         actionButton.setAttribute("aria-busy", "true");
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 120000);
+        const timeout = setTimeout(() => controller.abort(), action === "article" ? 180000 : 120000);
         try {
-            const response=await fetch(`${API}/builder/${action}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload),signal:controller.signal});
+            const response=await fetch(`${API}/builder/${action}`,{method:"POST",headers:payload instanceof FormData ? {} : {"Content-Type":"application/json"},body:payload instanceof FormData ? payload : JSON.stringify(payload),signal:controller.signal});
             if(response.status===404)throw new Error("The builder API is not deployed yet. Deploy the latest Function App ZIP, then retry this step.");
             let data;
             try { data=await response.json(); } catch { throw new Error("The builder received an unexpected server response. Your saved draft is unchanged."); }
@@ -383,6 +392,69 @@
             }content.append(article);
         });
     }
+    $("articleForm").addEventListener("submit", async event => {
+        event.preventDefault();
+        const file = $("articleFile").files[0];
+        if(!file || file.size>25*1024*1024 || !file.name.toLowerCase().endsWith(".pdf")) {
+            $("articleStatus").textContent="Choose a PDF of at most 25 MB."; return;
+        }
+        const form = new FormData(); form.append("file",file);
+        form.append("focus",$("articleFocus").value);form.append("poster_type",doc.poster_type);
+        form.append("audience",doc.audience);form.append("event_requirements",doc.event_requirements);
+        $("articleStatus").textContent="Reading the article and drafting source-linked sections. This can take a few minutes…";
+        $("articleProposals").hidden=true;articleResult=null;
+        try {
+            const result = await request("article",form);
+            articleResult=result;
+            $("articleMetadata").textContent=`${result.source_filename} · ${result.page_count} pages. Suggested title: ${result.title}. Suggested article authors: ${result.authors}. Citation: ${result.citation}`;
+            $("articleLimitations").replaceChildren(...[...(result.questions||[]).map(q=>`Question: ${q}`),...(result.limitations||[])].map(t=>node("li",t)));
+            $("articleSectionChoices").replaceChildren();
+            result.sections.forEach((section,index)=>{
+                const card=node("article",null,"article-draft");
+                const label=node("label",null,"article-checkbox"),check=document.createElement("input");check.type="checkbox";check.checked=true;check.dataset.articleSection=index;
+                label.append(check,document.createTextNode(section.title));
+                const purpose=node("p",section.purpose),draft=node("pre",section.text);
+                const refs=node("details"),summary=node("summary",`Source pages: ${[...new Set(section.source_excerpts.map(e=>e.page))].join(", ")}`);refs.append(summary);
+                section.source_excerpts.forEach(e=>refs.append(node("strong",`Page ${e.page} · ${e.block_id}`),node("p",e.text)));
+                card.append(label,purpose,draft,refs);$("articleSectionChoices").append(card);
+            });
+            $("articleFigureChoices").replaceChildren();
+            (result.figures||[]).forEach((figure,index)=>{
+                const card=node("label",null,"article-figure"),check=document.createElement("input");check.type="checkbox";check.dataset.articleFigure=index;
+                const img=document.createElement("img");img.src=figure.imageData;img.alt=figure.label;
+                card.append(check,node("span",`${figure.label} — caption and approval needed`),img);$("articleFigureChoices").append(card);
+            });
+            if(!result.figures?.length)$("articleFigureChoices").append(node("p","No suitable embedded image regions were found. Upload figures separately in the builder."));
+            $("articleImportMode").value=doc.sections.length?"append":"new";
+            $("articleUseMetadata").checked=!doc.sections.length&&!doc.title.trim()&&!doc.authors.trim()&&!doc.affiliations.trim();
+            $("articleProposals").hidden=false;
+            $("articleStatus").textContent="Drafts ready for review. Nothing has been added to your poster yet.";
+        }catch(error){$("articleStatus").textContent=error.message;message(error.message,true);}
+    });
+    $("applyArticle").addEventListener("click",()=>{
+        if(!articleResult)return;
+        const drafts=Array.from($("articleSectionChoices").querySelectorAll("input:checked")).map(input=>articleResult.sections[Number(input.dataset.articleSection)]);
+        const figures=Array.from($("articleFigureChoices").querySelectorAll("input:checked")).map(input=>articleResult.figures[Number(input.dataset.articleFigure)]);
+        const replacing=$("articleImportMode").value==="new";
+        if(!drafts.length&&!figures.length){$("articleStatus").textContent="Select at least one draft or image candidate.";return;}
+        if((replacing?0:doc.sections.length)+drafts.length+figures.length>20){$("articleStatus").textContent="Choose fewer drafts: a poster supports up to 20 sections.";return;}
+        if(doc.sections.length&&replacing&&!confirm("Start a new poster from this article? Save an editable backup first to keep the current poster."))return;
+        const oldDoc=doc;
+        const additions=drafts.map(draft=>({...sectionDefaults({...draft,id:crypto.randomUUID()}),text:draft.text,notes:draft.notes,source_filename:draft.source_filename,source_excerpts:draft.source_excerpts}));
+        figures.forEach(figure=>additions.push({...sectionDefaults({id:crypto.randomUUID(),title:figure.label,purpose:"Show article evidence; verify the original caption.",question:"What does this image show? Supply its caption and confirm it is complete."}),kind:"figure",imageData:figure.imageData,source_filename:articleResult.source_filename,source_excerpts:[]}));
+        const totalImageSize=[...(replacing?[]:doc.sections),...additions].reduce((n,s)=>n+(s.imageData||"").length,0);
+        if(totalImageSize>8*1024*1024){$("articleStatus").textContent="Choose fewer image candidates to keep the editable draft under its size limit.";return;}
+        if(replacing)doc={...C.createDocument(),title:oldDoc.title,authors:oldDoc.authors,affiliations:oldDoc.affiliations,poster_type:oldDoc.poster_type,audience:oldDoc.audience,event_requirements:oldDoc.event_requirements,width_in:oldDoc.width_in,height_in:oldDoc.height_in,template:oldDoc.template};
+        if($("articleUseMetadata").checked){doc.title=articleResult.title.slice(0,500);doc.authors=articleResult.authors.slice(0,2000);doc.affiliations=articleResult.affiliations.slice(0,3000);}
+        const previous=doc.sections;
+        const layout=C.arrange([...previous,...additions],doc.template);
+        doc.sections=[...previous,...layout.slice(previous.length)];
+        doc.plan_notes=[...doc.plan_notes,`Article source: ${articleResult.source_filename}. Citation: ${articleResult.citation}. Verify poster authorship, source support and applicable requirements.`,...articleResult.limitations].slice(0,20);
+        selected=additions[0].id;changed();syncSetup();renderAll();preloadImages();
+        $("articleProposals").hidden=true;$("articleImport").open=false;articleResult=null;
+        message("Selected article drafts were added unapproved. Review each source excerpt, revise the text, and approve it. Existing sections and their placement were retained when adding to a poster.");
+        $("sectionEditor").scrollIntoView({behavior:"smooth"});
+    });
     window.addEventListener("beforeunload",event=>{if(saving||(storageUnsaved&&backupRevision!==doc.revision)){event.preventDefault();event.returnValue="";}});
     openSaved();
 })();
