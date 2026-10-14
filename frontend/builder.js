@@ -64,7 +64,9 @@
             const li = node("li"), button = node("button", `${s.approved ? "✓" : "○"} ${i+1}. ${s.title}`);
             button.type = "button"; if (s.id === selected) button.setAttribute("aria-current", "step");
             button.addEventListener("click", () => { selected = s.id; renderAll(); $("sectionEditor").scrollIntoView({behavior:"smooth", block:"start"}); });
-            li.append(button); $("sectionSteps").append(li);
+            const remove=node("button","×","builder-remove-step");remove.type="button";remove.setAttribute("aria-label",`Remove ${s.title}`);
+            remove.addEventListener("click",()=>removeSection(s.id));
+            li.append(button,remove); $("sectionSteps").append(li);
         });
     }
     function renderEditor() {
@@ -84,6 +86,7 @@
         $("figureThumbnail").hidden = !s.imageData;
         if(s.imageData) $("figureThumbnail").src = s.imageData;
         else $("figureThumbnail").removeAttribute("src");
+        if(s.kind==="figure" && s.source_filename) $("sectionSources").append(node("p",`Figure source: ${s.source_filename}${s.source_page ? ` · PDF page ${s.source_page}` : ""}. Verify the crop and caption before approving.`));
         if (s.source_excerpts?.length) {
             const evidence = node("details"), heading = node("summary", `Article source: ${s.source_filename || "Uploaded article"}`);
             evidence.append(heading);
@@ -176,6 +179,12 @@
         const zoom = $("builderZoom").value;
         stage.style.width = `${zoom === "fit" ? Math.min(1200, Math.max(100,$("builderViewport").clientWidth-32), Math.max(100,$("builderViewport").clientHeight-32)*canvas.width/canvas.height) : 1200*Number(zoom)}px`;
     }
+    function settleSection(id, rect) {
+        const result=C.placeSection(doc.sections,id,rect,doc.template);
+        doc.sections=result.sections;
+        if(result.mode==="grid")message("The board returned to template slots to prevent overlap. Wording and font sizes are unchanged; check text fit.");
+        else message("Section placed. Other sections moved as needed to keep the board clear.");
+    }
     function renderHandles() {
         $("builderHandles").replaceChildren();
         doc.sections.forEach(s => {
@@ -187,7 +196,7 @@
             item.addEventListener("keydown",event=>{
                 if (["Enter"," "].includes(event.key)) { event.preventDefault(); selected=s.id; renderAll(); }
                 else if (["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"].includes(event.key)) {
-                    event.preventDefault(); s.rect=C.clampRect({...s.rect,x:s.rect.x+(event.key==="ArrowRight"?.01:event.key==="ArrowLeft"?-.01:0),y:s.rect.y+(event.key==="ArrowDown"?.01:event.key==="ArrowUp"?-.01:0)}); changed(); renderPoster(); updatePlacement();
+                    event.preventDefault(); s.rect=C.clampRect({...s.rect,x:s.rect.x+(event.key==="ArrowRight"?.01:event.key==="ArrowLeft"?-.01:0),y:s.rect.y+(event.key==="ArrowDown"?.01:event.key==="ArrowUp"?-.01:0)}); settleSection(s.id,s.rect); changed(); renderSteps(); renderPoster(); updatePlacement();
                     $("builderHandles").querySelector(`[data-section-id="${CSS.escape(s.id)}"]`)?.focus();
                 }
             });
@@ -205,7 +214,7 @@
                     Object.assign(item.style,{left:s.rect.x*100+"%",top:s.rect.y*100+"%",width:s.rect.w*100+"%",height:s.rect.h*100+"%"});
                     drawPoster(canvas,doc); updatePlacement();
                 };
-                const end=()=>{item.removeEventListener("pointermove",move); item.removeEventListener("pointerup",end); item.removeEventListener("pointercancel",end); if(moved)changed(); renderPoster();};
+                const end=()=>{item.removeEventListener("pointermove",move); item.removeEventListener("pointerup",end); item.removeEventListener("pointercancel",end); if(moved){settleSection(s.id,s.rect);changed();renderSteps();updatePlacement();} renderPoster();};
                 item.addEventListener("pointermove",move);item.addEventListener("pointerup",end);item.addEventListener("pointercancel",end);
             });
             $("builderHandles").append(item);
@@ -304,12 +313,19 @@
     $("nextSection").addEventListener("click",()=>{const i=doc.sections.findIndex(s=>s.id===selected);selected=doc.sections[(i+1)%doc.sections.length]?.id;renderAll();});
     ["x","y","w","h"].forEach(k=>$("section"+k.toUpperCase()).addEventListener("change",()=>{
         const s=current(),value=Number($("section"+k.toUpperCase()).value);if(!s||!Number.isFinite(value))return;
-        s.rect=C.clampRect({...s.rect,[k]:value/100});changed();updatePlacement();renderPoster();
+        settleSection(s.id,C.clampRect({...s.rect,[k]:value/100}));changed();updatePlacement();renderSteps();renderPoster();
     }));
     $("sectionFont").addEventListener("change",()=>{const s=current(),value=Number($("sectionFont").value);if(!s||!Number.isFinite(value))return;s.font_size=Math.max(16,Math.min(72,value));changed();renderPoster();});
     function reorder(delta){const i=doc.sections.findIndex(s=>s.id===selected),j=i+delta;if(j<0||j>=doc.sections.length)return;[doc.sections[i],doc.sections[j]]=[doc.sections[j],doc.sections[i]];doc.sections=C.arrange(doc.sections,doc.template);changed();renderAll();}
     $("moveEarlier").addEventListener("click",()=>reorder(-1));$("moveLater").addEventListener("click",()=>reorder(1));
-    $("removeSection").addEventListener("click",()=>{const s=current();if(!s||!confirm(`Remove ${s.title} and its content? Save an editable draft first if you need a backup.`))return;doc.sections=doc.sections.filter(x=>x.id!==s.id);selected=doc.sections[0]?.id||null;changed();syncSetup();renderAll();});
+    function removeSection(id) {
+        const index=doc.sections.findIndex(s=>s.id===id),s=doc.sections[index];
+        if(!s||!confirm(`Remove ${s.title} and its content? Save an editable draft first if you need a backup.`))return;
+        doc.sections=doc.sections.filter(x=>x.id!==s.id);
+        if(selected===id)selected=doc.sections[Math.min(index,doc.sections.length-1)]?.id||null;
+        changed();syncSetup();renderAll();message(`${s.title} was removed.`);
+    }
+    $("removeSection").addEventListener("click",()=>removeSection(selected));
     function addSection(kind){
         if(doc.sections.length>=20){message("This poster already has 20 sections.",true);return;}
         const s={...sectionDefaults({id:crypto.randomUUID(),title:kind==="figure"?"Figure":"New section",purpose:kind==="figure"?"Show evidence and connect it to the poster’s message.":"Give this section a distinct purpose.",question:"What information should the reader take away?"}),kind};
@@ -420,9 +436,10 @@
             });
             $("articleFigureChoices").replaceChildren();
             (result.figures||[]).forEach((figure,index)=>{
-                const card=node("label",null,"article-figure"),check=document.createElement("input");check.type="checkbox";check.dataset.articleFigure=index;
+                const card=node("label",null,"article-figure"),check=document.createElement("input");check.type="checkbox";check.checked=figure.recommended===true;check.dataset.articleFigure=index;
                 const img=document.createElement("img");img.src=figure.imageData;img.alt=figure.label;
-                card.append(check,node("span",`${figure.label} — caption and approval needed`),img);$("articleFigureChoices").append(card);
+                card.append(check,node("span",`${figure.label} — ${figure.recommended ? "selected as a draft figure section" : "optional image candidate"}`),img);
+                if(figure.caption)card.append(node("p",figure.caption));$("articleFigureChoices").append(card);
             });
             if(!result.figures?.length)$("articleFigureChoices").append(node("p","No suitable embedded image regions were found. Upload figures separately in the builder."));
             $("articleImportMode").value=doc.sections.length?"append":"new";
@@ -441,7 +458,7 @@
         if(doc.sections.length&&replacing&&!confirm("Start a new poster from this article? Save an editable backup first to keep the current poster."))return;
         const oldDoc=doc;
         const additions=drafts.map(draft=>({...sectionDefaults({...draft,id:crypto.randomUUID()}),text:draft.text,notes:draft.notes,source_filename:draft.source_filename,source_excerpts:draft.source_excerpts}));
-        figures.forEach(figure=>additions.push({...sectionDefaults({id:crypto.randomUUID(),title:figure.label,purpose:"Show article evidence; verify the original caption.",question:"What does this image show? Supply its caption and confirm it is complete."}),kind:"figure",imageData:figure.imageData,source_filename:articleResult.source_filename,source_excerpts:[]}));
+        figures.forEach(figure=>additions.push({...sectionDefaults({id:crypto.randomUUID(),title:figure.label,purpose:"Show article evidence; verify the original caption.",question:"What does this image show? Supply its caption and confirm it is complete."}),kind:"figure",imageData:figure.imageData,caption:(figure.caption||""),figure_description:(figure.caption||""),source_filename:articleResult.source_filename,source_page:figure.page,source_excerpts:[]}));
         const totalImageSize=[...(replacing?[]:doc.sections),...additions].reduce((n,s)=>n+(s.imageData||"").length,0);
         if(totalImageSize>8*1024*1024){$("articleStatus").textContent="Choose fewer image candidates to keep the editable draft under its size limit.";return;}
         if(replacing)doc={...C.createDocument(),title:oldDoc.title,authors:oldDoc.authors,affiliations:oldDoc.affiliations,poster_type:oldDoc.poster_type,audience:oldDoc.audience,event_requirements:oldDoc.event_requirements,width_in:oldDoc.width_in,height_in:oldDoc.height_in,template:oldDoc.template};
@@ -449,6 +466,10 @@
         const previous=doc.sections;
         const layout=C.arrange([...previous,...additions],doc.template);
         doc.sections=[...previous,...layout.slice(previous.length)];
+        for(const added of additions){
+            const s=doc.sections.find(s=>s.id===added.id);
+            if(doc.sections.some(other=>other.id!==s.id&&C.intersects(s.rect,other.rect)))settleSection(s.id,s.rect);
+        }
         doc.plan_notes=[...doc.plan_notes,`Article source: ${articleResult.source_filename}. Citation: ${articleResult.citation}. Verify poster authorship, source support and applicable requirements.`,...articleResult.limitations].slice(0,20);
         selected=additions[0].id;changed();syncSetup();renderAll();preloadImages();
         $("articleProposals").hidden=true;$("articleImport").open=false;articleResult=null;

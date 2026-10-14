@@ -1,5 +1,6 @@
 """Real-browser builder workflow checks with deterministic AI responses; no Azure credentials."""
 import json
+import base64
 import shutil
 import threading
 from functools import partial
@@ -34,7 +35,7 @@ def main():
                 action=route.request.url.rsplit('/',1)[-1]
                 if action=='article':
                     route.fulfill(json={'title':'Article title','authors':'Article authors','affiliations':'Article institute','citation':'Article citation','source_filename':'paper.pdf','page_count':2,
-                        'sections':[{'title':'Article findings','purpose':'Report the supported observation','text':'Enrollment: 120 participants.','notes':'The study enrolled 120 participants.','source_filename':'paper.pdf','source_excerpts':[{'page':2,'block_id':'p2-b1','text':'The study enrolled 120 participants.'}]}], 'figures':[], 'questions':[], 'limitations':['Verify scientific meaning.']})
+                        'sections':[{'title':'Article findings','purpose':'Report the supported observation','text':'Enrollment: 120 participants.','notes':'The study enrolled 120 participants.','source_filename':'paper.pdf','source_excerpts':[{'page':2,'block_id':'p2-b1','text':'The study enrolled 120 participants.'}]}], 'figures':[{'id':'figure-1','page':2,'label':'Figure 1 · PDF page 2','caption':'Figure 1. Observed response.','imageData':'data:image/png;base64,'+base64.b64encode(png).decode(),'recommended':True}], 'questions':[], 'limitations':['Verify scientific meaning.']})
                     return
                 payload=route.request.post_data_json
                 captured.append((route.request.url,payload))
@@ -84,14 +85,19 @@ def main():
             before=handle.bounding_box()
             page.mouse.move(before['x']+25,before['y']+25)
             page.mouse.down();page.mouse.move(before['x']+65,before['y']+45,steps=8);page.mouse.up()
-            assert float(page.locator('#sectionX').input_value())>51
+            after=page.locator('[data-section-id="section-2"]').bounding_box()
+            assert abs(after['x']-before['x'])+abs(after['y']-before['y'])>2
+            assert page.evaluate('''() => {
+                const r=Array.from(document.querySelectorAll('.builder-section-handle')).map(e=>e.getBoundingClientRect());
+                return r.every((a,i)=>r.slice(i+1).every(b=>Math.min(a.right,b.right)-Math.max(a.left,b.left)<1 || Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)<1));
+            }''')
             # Resize the selected canvas region without invalidating approved wording.
             handle=page.locator('[data-section-id="section-2"]')
             corner=handle.locator('.resize-handle');corner.scroll_into_view_if_needed()
             size_before=handle.bounding_box()['width'];bounds=corner.bounding_box()
             page.mouse.move(bounds['x']+5,bounds['y']+5);page.mouse.down()
             page.mouse.move(bounds['x']+30,bounds['y']+20,steps=6);page.mouse.up()
-            assert page.locator('[data-section-id="section-2"]').bounding_box()['width']>size_before
+            assert page.locator('[data-section-id="section-2"]').bounding_box()['width']>size_before or 'template slots' in page.locator('#builderMessage').inner_text()
             assert 'Approved and placed' in page.locator('#approvalStatus').inner_text()
             # Figure upload, description, caption and approval.
             page.locator('#addFigure').click()
@@ -174,20 +180,31 @@ def main():
             page.locator('#articleProposals').wait_for(state='visible')
             assert page.locator('#sectionSteps li').count()==3
             assert not page.locator('#articleUseMetadata').is_checked()
+            assert page.locator('#articleFigureChoices input').is_checked()
             page.locator('#applyArticle').click()
-            assert page.locator('#sectionSteps li').count()==4
+            assert page.locator('#sectionSteps li').count()==5
             assert page.locator('#sectionText').input_value()=='Enrollment: 120 participants.'
             assert 'Draft —' in page.locator('#approvalStatus').inner_text()
             assert 'Page 2' in page.locator('#sectionSources').text_content()
             with page.expect_download() as download:
                 page.locator('#backupDraft').click()
             after_article=json.loads(Path(download.value.path()).read_text())
-            assert after_article['sections'][:3]==before_article['sections']
+            for old in before_article['sections']:
+                new=next(s for s in after_article['sections'] if s['id']==old['id'])
+                assert (new['text'],new['approved'],new['imageData'])==(old['text'],old['approved'],old['imageData'])
+            for i,a in enumerate(after_article['sections']):
+                for b in after_article['sections'][i+1:]:
+                    x,y=a['rect'],b['rect']
+                    assert min(x['x']+x['w'],y['x']+y['w'])<=max(x['x'],y['x']) or min(x['y']+x['h'],y['y']+y['h'])<=max(x['y'],y['y'])
             assert after_article['title']==before_article['title']
-            assert after_article['sections'][3]['source_excerpts'][0]['page']==2
+            imported_text=next(s for s in after_article['sections'] if s['title']=='Article findings')
+            imported_figure=next(s for s in after_article['sections'] if s['title']=='Figure 1 · PDF page 2')
+            assert imported_text['source_excerpts'][0]['page']==2
+            assert imported_figure['caption']=='Figure 1. Observed response.'
+            assert imported_figure['source_page']==2 and not imported_figure['approved']
             page.wait_for_function('document.getElementById("saveStatus").textContent.startsWith("Saved")')
             page.reload();page.get_by_text('Draft restored from this device',exact=True).wait_for()
-            page.locator('#sectionSteps button').last.click()
+            page.locator('#sectionSteps li > button:first-child').filter(has_text='Article findings').click()
             assert 'Page 2' in page.locator('#sectionSources').text_content()
             # The additional route can also start a fresh poster, without the guided-outline step.
             page.locator('#newPoster').click()
@@ -196,9 +213,17 @@ def main():
             page.locator('#analyzeArticle').click();page.locator('#articleProposals').wait_for(state='visible')
             assert page.locator('#articleImportMode').input_value()=='new'
             page.locator('#applyArticle').click()
-            assert page.locator('#sectionSteps li').count()==1
+            assert page.locator('#sectionSteps li').count()==2
             assert page.locator('#sectionText').input_value()=='Enrollment: 120 participants.'
             assert 'Draft —' in page.locator('#approvalStatus').inner_text()
+            # Visible removal works from the main editor and from the section list.
+            page.locator('#removeSection').click()
+            assert page.locator('#sectionSteps li').count()==1
+            assert page.locator('#figureCaption').input_value()=='Figure 1. Observed response.'
+            assert 'PDF page 2' in page.locator('#sectionSources').inner_text()
+            page.get_by_role('button',name='Remove Figure 1 · PDF page 2',exact=True).click()
+            assert page.locator('#sectionSteps li').count()==0
+            assert page.locator('#setupForm').is_visible()
             assert not errors, errors
             browser.close()
         print('Builder browser checks passed: guided AI drafting, approvals, template stability, drag, figure upload, local restore, review image, explicit suggestion approval, PNG export, mobile layout, and source-linked article import (new and existing posters).')

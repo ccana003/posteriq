@@ -27,3 +27,24 @@ test('warnings distinguish unapproved content and overlapping approved regions',
     const d={...C.createDocument(),title:'Title',authors:'Names',affiliations:'University',sections:[section('a'),section('b')]};
     assert.match(C.warnings(d).join(' '),/overlaps/);d.sections[1].approved=false;assert.match(C.warnings(d).join(' '),/not approved/);
 });
+function assertClear(sections) {
+    for(let i=0;i<sections.length;i++)for(let j=i+1;j<sections.length;j++)
+        assert.equal(C.intersects(sections[i].rect,sections[j].rect,0),false,`${sections[i].id} overlaps ${sections[j].id}`);
+}
+test('dropping into another section moves neighbors while retaining text and approval',()=>{
+    const original=[{...section('a'),rect:{x:.05,y:.2,w:.2,h:.2}}, {...section('b'),rect:{x:.3,y:.2,w:.2,h:.2}}];
+    const result=C.placeSection(original,'a',{x:.3,y:.2,w:.2,h:.2},'three');
+    assert.equal(result.mode,'packed');assertClear(result.sections);
+    assert.equal(result.sections[0].rect.x,.3);
+    assert.deepEqual(result.sections.map(s=>[s.text,s.approved,s.font_size]),original.map(s=>[s.text,s.approved,s.font_size]));
+});
+test('crowded boards fall back to non-overlapping template slots without losing sections',()=>{
+    const original=C.arrange(Array.from({length:20},(_,i)=>section(`s${i}`)),'three');
+    const result=C.placeSection(original,'s4',{x:.02,y:.17,w:.95,h:.8},'three');
+    assert.equal(result.mode,'grid');assert.equal(result.sections.length,20);assertClear(result.sections);
+    assert.ok(result.sections.every(s=>s.text==='Approved wording'&&s.approved));
+});
+test('unapproved figure placeholders also cause overlap warnings',()=>{
+    const original=[section('a'),{...section('b'),approved:false,kind:'figure'}];
+    assert.match(C.warnings({...C.createDocument(),sections:original}).join(' '),/overlaps/);
+});

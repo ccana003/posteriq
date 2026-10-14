@@ -157,3 +157,18 @@ proposed text and page excerpts, select drafts, then choose whether to start a
 new poster or append to the current one. Verify existing approved text and
 placement are retained when appending. Every imported section needs approval;
 image candidates also need their captions and descriptions before approval.
+
+
+### Section removal, automatic layout and article figures
+
+The latest PR #2 update makes Remove section visible in the main section actions
+and adds × controls beside each section in the list. Drag into another region,
+release and verify the board makes room without overlaps (including unapproved
+placeholders). On a full board it may reorder into template slots; check overflow
+warnings afterward. Wording, approval and font size do not change during reflow.
+
+Deploy the latest backend ZIP to test enhanced article figure detection, then run
+a new article proposal. Caption-linked raster and vector figures should be selected
+as draft figure sections, with source pages and original captions. Verify complete
+panels/axes/legends and caption accuracy before approving. Detection is best effort;
+manual figure upload and replacement remain available.

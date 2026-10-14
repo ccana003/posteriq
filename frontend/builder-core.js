@@ -24,6 +24,46 @@ const PosterBuilderCore = (() => {
         const h = Math.max(.06, Math.min(.8, rect.h));
         return {x: Math.max(0, Math.min(1 - w, rect.x)), y: Math.max(.17, Math.min(1 - h, rect.y)), w, h};
     }
+    function intersects(a, b, gap = .008) {
+        return a.x < b.x+b.w+gap && a.x+a.w+gap > b.x && a.y < b.y+b.h+gap && a.y+a.h+gap > b.y;
+    }
+    function placeSection(sections, activeId, desired, template) {
+        const active = sections.find(s => s.id === activeId);
+        if (!active) return {sections, mode: "unchanged"};
+        const anchor = {...active, rect: clampRect(desired)};
+        const placed = [anchor], positions = new Map([[activeId, anchor.rect]]);
+        const others = sections.filter(s=>s.id!==activeId).sort((a,b)=>b.rect.w*b.rect.h-a.rect.w*a.rect.h);
+        for (const section of others) {
+            const r = section.rect;
+            const xs = new Set([r.x, .025, 1-.025-r.w]);
+            const ys = new Set([r.y, .19, 1-.025-r.h]);
+            placed.forEach(s=>{
+                xs.add(s.rect.x+s.rect.w+.012); xs.add(s.rect.x-r.w-.012);
+                ys.add(s.rect.y+s.rect.h+.012); ys.add(s.rect.y-r.h-.012);
+            });
+            const candidates=[];
+            for(const x of xs)for(const y of ys){
+                if(x<0||y<.17||x+r.w>1+.000001||y+r.h>1+.000001)continue;
+                const candidate={x,y,w:r.w,h:r.h};
+                if(!placed.some(s=>intersects(candidate,s.rect)))candidates.push(candidate);
+            }
+            candidates.sort((a,b)=>(a.x-r.x)**2+(a.y-r.y)**2-((b.x-r.x)**2+(b.y-r.y)**2));
+            if(!candidates.length){
+                // Full boards cannot always retain custom sizes. Reorder template
+                // slots around the drop target rather than leaving items overlapping.
+                const target=sections.filter(s=>s.id!==activeId).sort((a,b)=>{
+                    const distance=s=>(s.rect.x+s.rect.w/2-anchor.rect.x-anchor.rect.w/2)**2+(s.rect.y+s.rect.h/2-anchor.rect.y-anchor.rect.h/2)**2;
+                    return distance(a)-distance(b);
+                })[0];
+                const ordered=sections.filter(s=>s.id!==activeId);
+                const insertion=target?ordered.findIndex(s=>s.id===target.id):0;
+                ordered.splice(Math.max(0,insertion),0,anchor);
+                return {sections:arrange(ordered,template), mode:"grid"};
+            }
+            positions.set(section.id,candidates[0]);placed.push({...section,rect:candidates[0]});
+        }
+        return {sections:sections.map(s=>({...s,rect:positions.get(s.id)})), mode:"packed"};
+    }
     function wrap(context, text, width) {
         const lines = [];
         for (const paragraph of text.split(/\r?\n/)) {
@@ -45,9 +85,9 @@ const PosterBuilderCore = (() => {
         if (!document.affiliations.trim()) result.push("Add affiliations or confirm your organizer's requirements.");
         if (document.sections.some(s => !s.approved)) result.push("Some sections are not approved and are shown as placeholders.");
         if (document.sections.some(s => s.font_size < 24)) result.push("Some body text is below the suggested 24-point starting size; check your applicable guidance.");
-        for (const s of approved) {
+        for (const s of document.sections) {
             if (s.kind === "figure" && !s.caption.trim()) result.push(`${s.title}: add a caption.`);
-            for (const other of approved) {
+            for (const other of document.sections) {
                 if (s.id >= other.id) continue;
                 const a = s.rect, b = other.rect;
                 if (Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x) > .002 && Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y) > .002)
@@ -85,6 +125,7 @@ const PosterBuilderCore = (() => {
             section.font_size = Number.isFinite(s.font_size) ? Math.max(16,Math.min(72,s.font_size)) : 28;
             section.requirement_level = s.requirement_level === "required" ? "required" : "recommended";
             section.sources = Array.isArray(s.sources) ? s.sources.filter(r => r && ["reference_id","source","text"].every(k => typeof r[k] === "string" || r[k] === null)).slice(0,12) : [];
+            section.source_page = Number.isInteger(s.source_page) && s.source_page > 0 && s.source_page <= 40 ? s.source_page : null;
             section.source_filename = typeof s.source_filename === "string" ? s.source_filename.slice(0,200) : "";
             section.source_excerpts = Array.isArray(s.source_excerpts) ? s.source_excerpts.filter(e => e && Number.isInteger(e.page) && e.page > 0 && e.page <= 40 && typeof e.text === "string" && e.text.length <= 12000 && typeof e.block_id === "string").slice(0,12) : [];
             section.imageData = "";
@@ -97,6 +138,6 @@ const PosterBuilderCore = (() => {
         });
         return result;
     }
-    return {TEMPLATES, createDocument, arrange, clampRect, wrap, warnings, validateImport};
+    return {TEMPLATES, createDocument, arrange, clampRect, intersects, placeSection, wrap, warnings, validateImport};
 })();
 if (typeof module !== "undefined") module.exports = PosterBuilderCore;

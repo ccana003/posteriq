@@ -65,3 +65,8 @@
 .article-figures { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 14px; }
 .article-figure { padding: 12px; background: white; border: 1px solid var(--border); }
 .article-figure img { max-width: 100%; max-height: 220px; object-fit: contain; }
+
+.builder-progress li { display:flex; align-items:stretch; gap:6px; }
+.builder-progress li > button:first-child { flex:1; min-width:0; }
+.builder-progress li .builder-remove-step { width:36px; flex:0 0 36px; padding:6px; color:#a52a22; font-size:22px; }
+#removeSection { color:#a52a22; border-color:#d9aaa5; }

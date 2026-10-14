@@ -116,9 +116,12 @@ Answer each section's question with source notes, generate concise wording,
 revise it and explicitly approve it. Only approved content appears on the poster.
 Editing content or source notes removes approval. Figures accept PNG/JPEG files,
 with author-supplied descriptions and captions. Drag sections or their corners,
-use keyboard arrows or placement controls, and adjust body font size. Layout
-checks report overlaps, unapproved sections, small text, unavailable figures and
-clipped text. Two provisional column layouts can be compared; switching layouts
+use keyboard arrows or placement controls, and adjust body font size. On drop, resize or numeric placement, neighboring regions move to avoid overlap,
+including draft placeholders. If current sizes cannot fit, the board reorders
+into non-overlapping template slots. Wording, approvals and font sizes are retained;
+review overflow warnings after reflow. Remove sections from the main editor
+actions or the × beside each item in the section list. Layout checks report
+overlaps, unapproved sections, small text, unavailable figures and clipped text. Two provisional column layouts can be compared; switching layouts
 rearranges the same approved content and never rewrites it. Actual institutional
 templates and branding can be added to the template registry once supplied.
 
@@ -176,17 +179,19 @@ from Poster details. The AI proposes concise sections with exact PDF page number
 source excerpts and suggested article metadata. Nothing enters the poster until
 the author selects drafts and chooses **Add selected drafts to builder**.
 
-Choose a new poster or append to an existing one. Appending retains existing
-wording, approvals, metadata and placement unless the author explicitly selects
-metadata replacement. New drafts are unapproved, with source text in their notes
+Choose a new poster or append to an existing one. Appending retains existing wording and approvals. Metadata replacement is opt-in;
+placement is retained where possible and the board reflows if new regions overlap. New drafts are unapproved, with source text in their notes
 and original excerpts available under Article source. Source references survive
-IndexedDB saves and editable JSON export/import. Appended sections may overlap
-existing regions: inspect layout warnings and arrange them before export.
+IndexedDB saves and editable JSON export/import. Appended sections reflow when necessary to avoid overlaps: inspect layout and
+text-fit warnings before export.
 
-Up to eight embedded raster image regions are offered as unchecked candidates.
-Their completeness and captions are not inferred or verified. Supply the original
-caption/description and approve manually; use Add figure for vector figures or
-poor crops. Scanned/image-only PDFs are explicitly rejected with guidance to use
+Up to eight figure candidates are offered. Original figure captions are matched
+to nearby raster images and vector-chart clusters, including neighboring panels.
+Caption-linked figures are selected by default and enter as unapproved figure
+sections with their original captions and PDF page references. Unlabeled raster
+images remain unchecked candidates. Verify all axes, legends, panels and captions
+before approval; detection is heuristic and Add figure remains available for
+missing figures or replacement crops. Scanned/image-only PDFs are explicitly rejected with guidance to use
 a searchable/OCR version. The uploaded PDF is processed transiently rather than
 stored in Blob Storage; retained excerpts and selected images save locally with
 the editable poster. The article proposal uses the existing OpenAI deployment.

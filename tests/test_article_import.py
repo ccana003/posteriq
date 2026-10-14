@@ -5,7 +5,7 @@ import azure.functions as func
 import function_app
 from types import SimpleNamespace
 import pymupdf
-from article_import import extract_article, propose_article
+from article_import import extract_article, propose_article, figure_regions
 from poster_builder import BuilderValidationError
 
 
@@ -56,6 +56,27 @@ class ArticleTests(unittest.TestCase):
         article=extract_article(data,'figures.pdf')
         self.assertEqual(article['figures'][0]['page'],2)
         self.assertTrue(article['figures'][0]['imageData'].startswith('data:image/png;base64,'))
+
+    def test_captioned_vector_panels_are_grouped_as_a_figure(self):
+        doc=pymupdf.open();page=doc.new_page(width=600,height=800)
+        page.draw_rect(pymupdf.Rect(60,120,260,280),color=(0,0,0))
+        page.draw_rect(pymupdf.Rect(280,120,480,280),color=(0,0,0))
+        page.insert_text((80,150),'Panel A: response')
+        page.insert_text((300,150),'Panel B: survival')
+        page.insert_textbox(pymupdf.Rect(45,330,550,400),'Figure 1. Observed response and survival. These observations are uncertain and must be interpreted with the study limitations.',fontsize=12)
+        regions=figure_regions(page,page.get_text('blocks',sort=True))
+        self.assertEqual(regions[0]['kind'],'captioned figure')
+        self.assertTrue(regions[0]['rect'].contains(pymupdf.Rect(60,120,480,280)))
+        article=extract_article(doc.tobytes(),'vector.pdf');doc.close()
+        self.assertTrue(article['figures'][0]['recommended'])
+        self.assertIn('Figure 1.',article['figures'][0]['caption'])
+
+    def test_caption_does_not_claim_a_chart_in_another_column(self):
+        doc=pymupdf.open();page=doc.new_page(width=600,height=800)
+        page.draw_rect(pymupdf.Rect(340,100,550,270),color=(0,0,0))
+        page.insert_text((40,300),'Figure 1. Left column figure.')
+        self.assertEqual(figure_regions(page,page.get_text('blocks',sort=True)),[])
+        doc.close()
 
     def test_multipart_article_route_returns_unapproved_source_linked_drafts(self):
         pdf=pdf_fixture();article=extract_article(pdf,'paper.pdf')
