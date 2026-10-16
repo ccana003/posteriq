@@ -56,3 +56,27 @@ test('figure title and image sizing preferences survive editable draft restorati
     delete d.sections[0].show_title;delete d.sections[0].image_sizing;
     const legacy=C.validateImport(d).sections[0];assert.equal(legacy.show_title,false);assert.equal(legacy.image_sizing,'proportional');
 });
+
+test('all five CTSI layouts preserve text, approval, and nonoverlapping panels',()=>{
+    const input=Array.from({length:7},(_,i)=>section('ctsi-'+i));
+    for(let n=1;n<=5;n++){
+        const output=C.arrange(input,'ctsi-'+n);
+        assert.equal(output.length,7);
+        assertClear(output);
+        assert.deepEqual(output.map(s=>s.text),input.map(s=>s.text));
+        assert.ok(output.every(s=>s.approved));
+    }
+});
+test('CTSI layouts safely reflow eight to twenty sections',()=>{
+    for(let n=1;n<=5;n++)for(const count of [8,12,20]){
+        const output=C.arrange(Array.from({length:count},(_,i)=>section('s'+i)),'ctsi-'+n);
+        assert.equal(output.length,count);
+        assertClear(output);
+    }
+});
+test('legacy two and three column draft layouts remain valid',()=>{
+    for(const name of ['two','three']){
+        const draft={...C.createDocument(),template:name,sections:C.arrange([section('a'),section('b')],name)};
+        assert.equal(C.validateImport(draft).template,name);
+    }
+});
