@@ -156,22 +156,59 @@
         const green = theme.getPropertyValue("--brand-green").trim() || "#005030";
         const orange = theme.getPropertyValue("--brand-orange").trim() || "#f47321";
         const tint = theme.getPropertyValue("--brand-tint").trim() || "#f2f7f4";
-        ctx.fillStyle = "white"; ctx.fillRect(0,0,width,height);
-        ctx.fillStyle = green; ctx.fillRect(0,0,width,height*.155);
-        ctx.fillStyle = orange; ctx.fillRect(0,height*.155,width,6);
-        ctx.fillStyle = "white"; ctx.font = "bold 32px Arial"; ctx.textBaseline = "top";
-        const titles = C.wrap(ctx, document.title || "Your poster title", width-60);
-        if (titles.length > 2) issues.push("The title overflows its header. Shorten it before export.");
-        titles.slice(0,2).forEach((line,i) => ctx.fillText(line,30,18+i*35));
-        ctx.font = "17px Arial";
-        const credits = `${document.authors || "Author names"} · ${document.affiliations || "Affiliations"}`;
-        const creditLines = C.wrap(ctx,credits,width-60);
-        if (creditLines.length > 2) issues.push("Author details overflow the header. Shorten them or adjust poster dimensions.");
-        creditLines.slice(0,2).forEach((line,i) => ctx.fillText(line,30,height*.155-45+i*20));
+        const ctsi = /^ctsi-[1-5]$/.test(document.template);
+        // Header image is loaded asynchronously; redraw once available.
+        const headerArt = window.__ctsiHeaderArt || (window.__ctsiHeaderArt = new Image());
+        if (ctsi && !headerArt.src) {
+            headerArt.onload = () => { if (canvas.isConnected) renderPoster(); };
+            headerArt.src = "../CTSI_Header_Clean_v2.png";
+        }
+        ctx.fillStyle = ctsi ? green : "white"; ctx.fillRect(0,0,width,height);
+        if (!ctsi) {
+            ctx.fillStyle = green; ctx.fillRect(0,0,width,height*.155);
+            ctx.fillStyle = orange; ctx.fillRect(0,height*.155,width,6);
+        }
+        if (ctsi && headerArt.complete && headerArt.naturalWidth) {
+            ctx.drawImage(headerArt,0,0,width,height*.155);
+        }
+        // CTSI text occupies the left portion of the artwork, above the first content panels.
+        ctx.fillStyle = "white"; ctx.textBaseline = "top";
+        const textX = 30, textWidth = ctsi ? width*.61 : width-60;
+        const headerLimit = height*.155;
+        ctx.save();
+        if (ctsi) { ctx.beginPath(); ctx.rect(textX,0,textWidth,headerLimit-5); ctx.clip(); }
+        let titleSize = ctsi ? 29 : 32;
+        let titles;
+        do {
+            ctx.font = `bold ${titleSize}px Arial`;
+            titles = C.wrap(ctx,document.title || "Your poster title",textWidth);
+            if (titles.length <= 2 || titleSize <= 20) break;
+            titleSize -= 1;
+        } while (true);
+        if (titles.length > 2) issues.push("The title is too long for the CTSI header; shorten it before export.");
+        const titleY = 18, titleLineHeight = titleSize*1.13;
+        titles.slice(0,2).forEach((line,i)=>ctx.fillText(line,textX,titleY+i*titleLineHeight));
+        const credits = [document.authors,document.affiliations].filter(Boolean).join(" · ") || "Author names · Affiliations";
+        const creditY = ctsi ? Math.max(76,titleY+Math.min(titles.length,2)*titleLineHeight+9) : headerLimit-45;
+        const creditSpace = Math.max(0,headerLimit-creditY-10);
+        let creditSize = ctsi ? 16 : 17, creditLines;
+        do {
+            ctx.font = `${creditSize}px Arial`;
+            creditLines = C.wrap(ctx,credits,textWidth);
+            if (creditLines.length*creditSize*1.2 <= creditSpace || creditSize <= 11) break;
+            creditSize -= 1;
+        } while (true);
+        const maxCreditLines = ctsi ? Math.max(0,Math.floor(creditSpace/(creditSize*1.2))) : 2;
+        if (creditLines.length > maxCreditLines) issues.push("Authors and affiliations do not fit in the CTSI header. Shorten the list or adjust the poster.");
+        creditLines.slice(0,maxCreditLines).forEach((line,i)=>ctx.fillText(line,textX,creditY+i*creditSize*1.2));
+        ctx.restore();
         document.sections.forEach(s => {
             const r = {x:s.rect.x*width,y:s.rect.y*height,w:s.rect.w*width,h:s.rect.h*height};
             ctx.save(); ctx.beginPath(); ctx.rect(r.x,r.y,r.w,r.h); ctx.clip();
-            ctx.fillStyle = tint; ctx.fillRect(r.x,r.y,r.w,r.h);
+            ctx.fillStyle = ctsi ? "#ffffff" : tint;
+            if (ctsi) {
+                ctx.beginPath(); ctx.roundRect(r.x,r.y,r.w,r.h,Math.min(12,r.w*.04,r.h*.08)); ctx.fill();
+            } else ctx.fillRect(r.x,r.y,r.w,r.h);
             if(s.kind==="figure") {
                 const image=images.get(s.imageData),m=figureMetrics(s,document,ctx,image,r.w);
                 ctx.fillStyle=green;ctx.font=`bold ${m.headingSize}px Arial`;
@@ -202,13 +239,18 @@
                 ctx.restore();return;
             }
             const pad = 12, headingSize = Math.max(12, s.font_size*1.2*width/(document.width_in*72));
-            ctx.fillStyle = green; ctx.font = `bold ${headingSize}px Arial`;
+            ctx.fillStyle = ctsi ? "#ffffff" : green; ctx.font = `bold ${headingSize}px Arial`;
             const heads = C.wrap(ctx,s.title,r.w-pad*2), headH=heads.length*(headingSize*1.2)+pad*2;
+            if (ctsi) {
+                ctx.fillStyle = orange;
+                ctx.beginPath(); ctx.roundRect(r.x,r.y,r.w,headH,[10,10,0,0]); ctx.fill();
+                ctx.fillStyle = "#ffffff";
+            }
             heads.forEach((line,i)=>ctx.fillText(line,r.x+pad,r.y+pad+i*headingSize*1.2));
-            ctx.fillStyle = orange; ctx.fillRect(r.x,r.y,4,headH);
+            if (!ctsi) { ctx.fillStyle = orange; ctx.fillRect(r.x,r.y,4,headH); }
             const font = s.font_size*width/(document.width_in*72), lineH=font*1.25;
             ctx.font = `${font}px Arial`; ctx.fillStyle = "#253746";
-            let y = r.y+headH;
+            let y = r.y+headH+(ctsi ? Math.max(9,font*.65) : 0);
             if (!s.approved) { ctx.fillStyle = "#657a83"; ctx.fillText("Awaiting author approval",r.x+pad,y); ctx.restore(); return; }
             let body = s.text;
             const lines = C.wrap(ctx,body,r.w-pad*2);
@@ -426,12 +468,19 @@
             if(!doc.sections.includes(s))return;s.imageData=data;s.figure_fitted=false;s.approved=false;changed();preloadImages();approvalStatus();renderPoster();if(current()===s){$("figureThumbnail").hidden=false;$("figureThumbnail").src=s.imageData;}message("Figure added. Describe what it shows, add its caption, and approve it.");
         }catch(error){message(error.message,true);}finally{event.target.value="";}
     });
-    function switchTemplate(name){doc.template=name;doc.sections=arrangePoster(doc.sections,name);changed();renderAll();message("Layout changed. Approved wording is unchanged; check fit and figure sizes.");}
+    function switchTemplate(name){
+        if (!C.TEMPLATES[name]) { message("Unknown poster layout.",true); return; }
+        if (doc.template === name) return;
+        doc.template=name;
+        doc.sections=arrangePoster(doc.sections,name);
+        changed();renderAll();
+        message("Layout changed. Approved wording and figures are unchanged; check fit and figure sizes.");
+    }
     $("builderTemplate").addEventListener("change",()=>switchTemplate($("builderTemplate").value));
     $("builderZoom").addEventListener("change",fitStage);new ResizeObserver(fitStage).observe($("builderViewport"),{box:"border-box"});
     $("compareTemplates").addEventListener("click",()=>{
         $("templateOptions").replaceChildren();
-        Object.entries(C.TEMPLATES).forEach(([id,template])=>{
+        Object.entries(C.TEMPLATES).filter(([id])=>id.startsWith("ctsi-")).forEach(([id,template])=>{
             const option=node("article"),title=node("h3",template.name),preview=document.createElement("canvas");
             const issues=drawPoster(preview,{...doc,template:id,sections:arrangePoster(doc.sections,id)});
             const warnings=node("p",issues.length?`${issues.length} fit warnings — inspect before choosing.`:"No text overflow detected in this layout.");
