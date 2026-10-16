@@ -12,7 +12,7 @@ layouts.forEach(layout=>{
  const card=document.createElement('section');card.className='card';
  const h=document.createElement('h2');h.textContent=layout.name;card.append(h);
  const poster=document.createElement('div');poster.className='poster';
- const title=document.createElement('div');title.className='title';title.textContent='Research Poster Title · Authors · University of Miami CTSI';poster.append(title);
+ const title=document.createElement('div');title.className='title';title.textContent='Research Poster Title';poster.append(title);
  const ornament=document.createElementNS('http://www.w3.org/2000/svg','svg');ornament.setAttribute('viewBox','0 0 480 360');ornament.setAttribute('preserveAspectRatio','none');ornament.classList.add('dots');
  ornament.innerHTML='<path d="M 250 -5 C 315 2, 332 69, 412 92 S 462 82, 493 68" fill="none" stroke="#f47321" stroke-width="3" stroke-dasharray="1 8" stroke-linecap="round"/><path d="M 450 79 l 13 8 -14 6 z M 467 72 l 13 8 -14 6 z" fill="none" stroke="#f47321" stroke-width="2.5" stroke-linejoin="round"/>';
  /* Original header image replaces schematic ornament and logo. */
