@@ -156,9 +156,12 @@
         const green = theme.getPropertyValue("--brand-green").trim() || "#005030";
         const orange = theme.getPropertyValue("--brand-orange").trim() || "#f47321";
         const tint = theme.getPropertyValue("--brand-tint").trim() || "#f2f7f4";
-        ctx.fillStyle = "white"; ctx.fillRect(0,0,width,height);
-        ctx.fillStyle = green; ctx.fillRect(0,0,width,height*.155);
-        ctx.fillStyle = orange; ctx.fillRect(0,height*.155,width,6);
+        const ctsi = /^ctsi-[1-5]$/.test(document.template);
+        ctx.fillStyle = ctsi ? green : "white"; ctx.fillRect(0,0,width,height);
+        if (!ctsi) {
+            ctx.fillStyle = green; ctx.fillRect(0,0,width,height*.155);
+            ctx.fillStyle = orange; ctx.fillRect(0,height*.155,width,6);
+        }
         ctx.fillStyle = "white"; ctx.font = "bold 32px Arial"; ctx.textBaseline = "top";
         const titles = C.wrap(ctx, document.title || "Your poster title", width-60);
         if (titles.length > 2) issues.push("The title overflows its header. Shorten it before export.");
@@ -171,7 +174,10 @@
         document.sections.forEach(s => {
             const r = {x:s.rect.x*width,y:s.rect.y*height,w:s.rect.w*width,h:s.rect.h*height};
             ctx.save(); ctx.beginPath(); ctx.rect(r.x,r.y,r.w,r.h); ctx.clip();
-            ctx.fillStyle = tint; ctx.fillRect(r.x,r.y,r.w,r.h);
+            ctx.fillStyle = ctsi ? "#ffffff" : tint;
+            if (ctsi) {
+                ctx.beginPath(); ctx.roundRect(r.x,r.y,r.w,r.h,Math.min(12,r.w*.04,r.h*.08)); ctx.fill();
+            } else ctx.fillRect(r.x,r.y,r.w,r.h);
             if(s.kind==="figure") {
                 const image=images.get(s.imageData),m=figureMetrics(s,document,ctx,image,r.w);
                 ctx.fillStyle=green;ctx.font=`bold ${m.headingSize}px Arial`;
@@ -202,10 +208,15 @@
                 ctx.restore();return;
             }
             const pad = 12, headingSize = Math.max(12, s.font_size*1.2*width/(document.width_in*72));
-            ctx.fillStyle = green; ctx.font = `bold ${headingSize}px Arial`;
+            ctx.fillStyle = ctsi ? "#ffffff" : green; ctx.font = `bold ${headingSize}px Arial`;
             const heads = C.wrap(ctx,s.title,r.w-pad*2), headH=heads.length*(headingSize*1.2)+pad*2;
+            if (ctsi) {
+                ctx.fillStyle = orange;
+                ctx.beginPath(); ctx.roundRect(r.x,r.y,r.w,headH,[10,10,0,0]); ctx.fill();
+                ctx.fillStyle = "#ffffff";
+            }
             heads.forEach((line,i)=>ctx.fillText(line,r.x+pad,r.y+pad+i*headingSize*1.2));
-            ctx.fillStyle = orange; ctx.fillRect(r.x,r.y,4,headH);
+            if (!ctsi) { ctx.fillStyle = orange; ctx.fillRect(r.x,r.y,4,headH); }
             const font = s.font_size*width/(document.width_in*72), lineH=font*1.25;
             ctx.font = `${font}px Arial`; ctx.fillStyle = "#253746";
             let y = r.y+headH;
