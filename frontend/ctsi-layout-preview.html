@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PosterIQ | CTSI Layout Comparison</title>
+<style>
+:root{font-family:Arial,sans-serif;color:#173c31;background:#f5f6f5}body{max-width:1450px;margin:auto;padding:24px}h1{margin-bottom:5px}p{line-height:1.5}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:22px;margin-top:24px}.card{background:white;padding:18px;border:1px solid #d5ded8;border-radius:12px}.poster{aspect-ratio:4/3;background:#005030;position:relative;overflow:hidden;border:1px solid #b4c2b8}.title{position:absolute;top:3%;left:3%;width:90%;font-weight:bold;color:white;font-size:clamp(11px,1.5vw,18px)}.panel{position:absolute;background:white;border-radius:4px;overflow:hidden;box-sizing:border-box}.panel-head{height:22%;background:#f47321;color:white;font-size:clamp(6px,.8vw,10px);font-weight:bold;padding:3px 5px;box-sizing:border-box}.line{height:3px;background:#dce5df;margin:6px 7px}.note{font-size:13px;color:#52665a}h2{font-size:18px;margin:0 0 12px}@media(max-width:600px){body{padding:12px}.grid{grid-template-columns:1fr}}
+</style></head><body><h1>CTSI Poster Layouts — Visual Comparison</h1><p>Five schematic layout previews based on the CTSI panel geometry. These are <strong>not</strong> exact PowerPoint reproductions or final export proofs. Use them to review panel arrangement before testing the live builder.</p><div class="grid" id="layouts"></div>
+<script>
+const layouts=[{"name":"CTSI Layout 1","slots":[{"id":"panel-1","x":0.034,"y":0.17,"w":0.278,"h":0.11},{"id":"panel-2","x":0.034,"y":0.297,"w":0.278,"h":0.39},{"id":"panel-3","x":0.034,"y":0.707,"w":0.278,"h":0.22},{"id":"panel-4","x":0.354,"y":0.17,"w":0.278,"h":0.3},{"id":"panel-5","x":0.354,"y":0.482,"w":0.278,"h":0.44},{"id":"panel-6","x":0.687,"y":0.17,"w":0.278,"h":0.58},{"id":"panel-7","x":0.687,"y":0.775,"w":0.278,"h":0.15}]},{"name":"CTSI Layout 2","slots":[{"id":"panel-1","x":0.029,"y":0.16,"w":0.21,"h":0.16},{"id":"panel-2","x":0.029,"y":0.337,"w":0.21,"h":0.35},{"id":"panel-3","x":0.029,"y":0.71,"w":0.21,"h":0.21},{"id":"panel-4","x":0.273,"y":0.17,"w":0.21,"h":0.75},{"id":"panel-5","x":0.515,"y":0.17,"w":0.21,"h":0.75},{"id":"panel-6","x":0.76,"y":0.16,"w":0.21,"h":0.49},{"id":"panel-7","x":0.76,"y":0.678,"w":0.21,"h":0.24}]},{"name":"CTSI Layout 3","slots":[{"id":"panel-1","x":0.029,"y":0.17,"w":0.44,"h":0.54},{"id":"panel-2","x":0.029,"y":0.738,"w":0.21,"h":0.19},{"id":"panel-3","x":0.257,"y":0.738,"w":0.21,"h":0.19},{"id":"panel-4","x":0.52,"y":0.17,"w":0.21,"h":0.37},{"id":"panel-5","x":0.52,"y":0.57,"w":0.21,"h":0.36},{"id":"panel-6","x":0.748,"y":0.17,"w":0.21,"h":0.54},{"id":"panel-7","x":0.748,"y":0.733,"w":0.21,"h":0.19}]},{"name":"CTSI Layout 4","slots":[{"id":"panel-1","x":0.034,"y":0.16,"w":0.284,"h":0.1},{"id":"panel-2","x":0.034,"y":0.277,"w":0.284,"h":0.47},{"id":"panel-3","x":0.034,"y":0.766,"w":0.284,"h":0.16},{"id":"panel-4","x":0.363,"y":0.172,"w":0.21,"h":0.76},{"id":"panel-5","x":0.596,"y":0.17,"w":0.368,"h":0.24},{"id":"panel-6","x":0.596,"y":0.427,"w":0.368,"h":0.27},{"id":"panel-7","x":0.596,"y":0.722,"w":0.368,"h":0.2}]},{"name":"CTSI Layout 5","slots":[{"id":"panel-1","x":0.034,"y":0.17,"w":0.278,"h":0.1},{"id":"panel-2","x":0.034,"y":0.293,"w":0.278,"h":0.39},{"id":"panel-3","x":0.034,"y":0.707,"w":0.278,"h":0.22},{"id":"panel-4","x":0.354,"y":0.17,"w":0.278,"h":0.3},{"id":"panel-5","x":0.354,"y":0.49,"w":0.278,"h":0.44},{"id":"panel-6","x":0.687,"y":0.17,"w":0.278,"h":0.57},{"id":"panel-7","x":0.687,"y":0.768,"w":0.278,"h":0.16}]}];
+const names=['Background','Methods','Results','Discussion','Conclusions','References','Acknowledgments'];
+const root=document.getElementById('layouts');
+layouts.forEach(layout=>{
+ const card=document.createElement('section');card.className='card';
+ const h=document.createElement('h2');h.textContent=layout.name;card.append(h);
+ const poster=document.createElement('div');poster.className='poster';
+ const title=document.createElement('div');title.className='title';title.textContent='Research Poster Title · Authors · University of Miami CTSI';poster.append(title);
+ layout.slots.forEach((slot,i)=>{
+  const panel=document.createElement('div');panel.className='panel';
+  for(const key of ['x','y','w','h'])panel.style[({x:'left',y:'top',w:'width',h:'height'})[key]]=(slot[key]*100)+'%';
+  const head=document.createElement('div');head.className='panel-head';head.textContent=names[i];panel.append(head);
+  for(let j=0;j<3;j++){const line=document.createElement('div');line.className='line';line.style.width=(70-j*12)+'%';panel.append(line)}
+  poster.append(panel);
+ });
+ card.append(poster);
+ const note=document.createElement('p');note.className='note';note.textContent='Schematic preview · 48 × 36 in';card.append(note);root.append(card);
+});
+</script></body></html>
