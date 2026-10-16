@@ -11,7 +11,7 @@ import zipfile
 
 
 BACKEND_FILES = (
-    "function_app.py", "knowledge_base.py", "poster_mockup.py", "poster_builder.py", "article_import.py",
+    "function_app.py", "knowledge_base.py", "knowledge_manager.py", "knowledge_auth.py", "poster_mockup.py", "poster_builder.py", "article_import.py",
     "host.json", "requirements.txt", "schemas/review.schema.json",
 )
 
@@ -49,7 +49,7 @@ import json
 import azure.functions as func
 import pymupdf
 import function_app
-assert len(function_app.app.get_functions()) == 8
+assert len(function_app.app.get_functions()) == 11
 assert function_app.load_review_schema()['properties']['schema_version']['const'] == '1.1'
 response = function_app.health(func.HttpRequest(method='GET', url='/api/health', body=b''))
 assert response.status_code == 200

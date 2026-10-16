@@ -55,6 +55,11 @@
         </section>
 
 
+        <div class="knowledge-auth-controls">
+            <button type="button" id="knowledgeSignIn" class="knowledge-secondary-button" disabled>Sign in to edit</button>
+            <p id="knowledgeStatus" role="status" aria-live="polite">Checking knowledge editing availability…</p>
+        </div>
+
         <section class="knowledge-summary">
 
             <div class="knowledge-stat">
@@ -219,8 +224,7 @@
 						<input
 							type="text"
 							id="guidanceSection"
-							placeholder="Section or heading"
-							required
+							placeholder="Section or heading (optional)"
 						>
 					</div>
 					
@@ -267,6 +271,7 @@
 					>
 				</div>
 
+				<p id="guidanceFormStatus" role="alert" aria-live="assertive"></p>
 				<div class="knowledge-form-actions">
 					<button
 						type="button"
@@ -288,7 +293,8 @@
 		</div>
 	</div>
 	
-    <script src="knowledge.js?v=6"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.28.1/lib/msal-browser.min.js" integrity="sha384-B5PXeUfgiegchZiX5iMRssMrHd9NfPhFnITob1HyW1CY76udptWpBsniaDsH/+BY" crossorigin="anonymous" defer></script>
+    <script src="knowledge.js?v=9" defer></script>
 
 </body>
 </html>
