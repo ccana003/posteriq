@@ -222,8 +222,9 @@ template comparison, consistency-review image and PNG export use the same render
 
 ## Knowledge Manager editing
 
-Authorized editors can add, edit and delete curated guidance, including internally
-developed standards. Setup requires Microsoft Entra API/SPA registrations, an
-editor role and the existing private knowledge container. See
+Add, edit and delete curated guidance, including internally developed standards.
+For testing without sign-in, explicitly set `POSTERIQ_KNOWLEDGE_ALLOW_ANONYMOUS_WRITES=true`
+on the Function App. Protected editing remains the default and uses Microsoft
+Entra editor roles. Both modes use the existing private knowledge container. See
 [configuration, concurrency and manual deployment instructions](docs/knowledge-manager.md).
 Public knowledge reads, poster review and poster building retain their existing behavior.

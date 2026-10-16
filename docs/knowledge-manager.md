@@ -1,8 +1,30 @@
 # Knowledge Manager editing
 
-Knowledge reads remain public. POST, PUT and DELETE verify signed Microsoft Entra
-**access tokens** in Python before opening storage. There is no anonymous write
-mode, local authentication bypass, shared browser key, or trust in caller-supplied
+## Add guidance without sign-in (current testing workflow)
+
+After manually deploying the latest Function App ZIP, open **Function App →
+Settings → Environment variables** (called **Configuration → Application settings**
+in some Azure views). Add and save:
+
+```text
+POSTERIQ_KNOWLEDGE_ALLOW_ANONYMOUS_WRITES = true
+```
+
+Wait for the app restart, then refresh the Knowledge Manager preview. The page
+hides the sign-in button and allows Add/Edit/Delete without Entra registration.
+Anyone who can reach the API can change guidance while this setting is enabled;
+CORS does not restrict non-browser callers. It affects all sites using that API,
+including production. Validation, unique IDs, source preservation, ETags and
+storage concurrency controls still apply. No existing records are changed merely
+by enabling the setting.
+
+Set it to `false` or remove it to restore protected editing. Then configure Entra
+as described below; without Entra configuration protected writes return 503.
+
+## Protected editing (default; can be configured later)
+
+Knowledge reads remain public. In protected mode POST, PUT and DELETE verify signed Microsoft Entra
+**access tokens** in Python before opening storage. There is no local authentication bypass, shared browser key, or trust in caller-supplied
 `X-MS-CLIENT-PRINCIPAL` headers. Missing configuration disables editing (503).
 The Functions route declarations use `ANONYMOUS` because the application verifies
 the bearer token itself; this does not grant unauthenticated write access.
@@ -104,7 +126,8 @@ be used by those existing retrieval paths.
 
 ## API contract
 
-All write requests require `Authorization: Bearer <access token>`.
+In protected mode, all write requests require `Authorization: Bearer <access token>`.
+In explicitly enabled public mode, that header is unnecessary.
 
 - `POST /api/knowledge`: JSON object with `reference_id`, `category`, `title`,
   `text`, `knowledge_file`, optional `source_section`, `source_page`, `applies_to`,

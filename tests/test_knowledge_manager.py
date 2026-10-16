@@ -18,7 +18,8 @@ from knowledge_manager import KnowledgeError, KnowledgeStore, INTERNAL_FILE, INT
 TENANT = '11111111-1111-1111-1111-111111111111'
 API = '22222222-2222-2222-2222-222222222222'
 SPA = '33333333-3333-3333-3333-333333333333'
-CONFIG = {'POSTERIQ_KNOWLEDGE_TENANT_ID': TENANT,
+CONFIG = {'POSTERIQ_KNOWLEDGE_ALLOW_ANONYMOUS_WRITES': 'false',
+          'POSTERIQ_KNOWLEDGE_TENANT_ID': TENANT,
           'POSTERIQ_KNOWLEDGE_API_CLIENT_ID': API, 'POSTERIQ_KNOWLEDGE_SPA_CLIENT_ID': SPA}
 
 
@@ -299,6 +300,28 @@ class KnowledgeApiTests(unittest.TestCase):
         self.assertEqual(data['records'][0]['text'], 'Original standard')
         self.assertEqual(data['records'][0]['etag'], '"v1"')
         self.assertEqual(len(data['sources']), 2)
+
+    def test_explicit_public_mode_allows_create_edit_delete_without_sign_in(self):
+        with patch.dict('os.environ', {'POSTERIQ_KNOWLEDGE_ALLOW_ANONYMOUS_WRITES': 'true',
+                                     'POSTERIQ_KNOWLEDGE_TENANT_ID': ''}):
+            self.assertEqual(self.request().status_code, 201)
+            self.assertEqual(self.request('PUT', payload(reference_id='RULE-1'), version='"v2"').status_code, 200)
+            self.assertEqual(self.request('DELETE', version='"v3"').status_code, 200)
+            req = func.HttpRequest(method='GET', url='/api/knowledge/access', body=b'')
+            self.assertEqual(json.loads(function_app.knowledge_access(req).get_body()), {'mode': 'public'})
+
+    def test_public_mode_keeps_validation_and_concurrency_checks(self):
+        with patch.dict('os.environ', {'POSTERIQ_KNOWLEDGE_ALLOW_ANONYMOUS_WRITES': 'true'}):
+            self.assertEqual(self.request(body=payload(title='')).status_code, 400)
+            self.assertEqual(self.request(body=payload(reference_id='RULE-1')).status_code, 409)
+            self.assertEqual(self.request('DELETE', version='"stale"').status_code, 412)
+            self.assertEqual(self.request('DELETE', version=None).status_code, 428)
+        self.assertFalse(self.container.uploads)
+
+    def test_only_explicit_true_enables_public_mode(self):
+        for value in ('', 'false', '1', 'yes'):
+            with patch.dict('os.environ', {'POSTERIQ_KNOWLEDGE_ALLOW_ANONYMOUS_WRITES': value}):
+                self.assertEqual(self.request().status_code, 401)
 
     def test_public_auth_configuration_has_no_secrets(self):
         req = func.HttpRequest(method='GET', url='/api/knowledge/access', body=b'')

@@ -26,6 +26,7 @@ def main():
             browser = playwright.chromium.launch(**options)
             page = browser.new_page()
             errors, captured = [], []
+            public_mode = [False]
             page.on('pageerror', lambda error: errors.append(str(error)))
             page.on('dialog', lambda dialog: dialog.accept())
             # Identity provider is stubbed, but the real page and all UI handlers run.
@@ -45,12 +46,16 @@ def main():
             def api(route):
                 request = route.request
                 if request.url.endswith('/access'):
-                    route.fulfill(json={'tenant_id': 'tenant', 'client_id': 'spa', 'scope': 'Knowledge.Write'})
+                    route.fulfill(json={'mode': 'public'} if public_mode[0] else
+                                  {'tenant_id': 'tenant', 'client_id': 'spa', 'scope': 'Knowledge.Write'})
                 elif request.method == 'GET':
                     route.fulfill(json={'records': records, 'sources': sources})
                 else:
                     captured.append(request)
-                    assert request.headers['authorization'] == 'Bearer test-editor-token'
+                    if public_mode[0]:
+                        assert 'authorization' not in request.headers
+                    else:
+                        assert request.headers['authorization'] == 'Bearer test-editor-token'
                     if request.method in ('PUT', 'DELETE'):
                         assert request.headers['if-match'] == '"v1"'
                     if response_status[0] != 200:
@@ -108,6 +113,25 @@ def main():
             page.get_by_role('button', name='Save guidance', exact=True).click()
             page.get_by_role('heading', name='Internal standard').wait_for()
             assert captured[-1].post_data_json['source_section'] == ''
+            # Public testing mode has no sign-in requirement but keeps version headers.
+            public_mode[0] = True
+            page.reload()
+            page.get_by_text('You can add, edit and delete guidance. Sign-in is not required.', exact=True).wait_for()
+            assert page.locator('#knowledgeSignIn').is_hidden()
+            page.get_by_role('button', name='Edit', exact=True).click()
+            page.locator('#guidanceTitle').fill('Publicly edited standard')
+            page.get_by_role('button', name='Save guidance', exact=True).click()
+            page.get_by_role('heading', name='Publicly edited standard').wait_for()
+            page.get_by_role('button', name='Delete', exact=True).click()
+            page.get_by_text('Guidance deleted.', exact=True).wait_for()
+            page.locator('#addGuidanceButton').click()
+            page.locator('#guidanceCategory').select_option('readability')
+            page.locator('#guidanceReferenceId').fill('PUBLIC-1')
+            page.locator('#guidanceTitle').fill('Publicly added standard')
+            page.locator('#guidanceText').fill('Use short sentences.')
+            page.locator('#guidanceSource').select_option('posteriq-internal.json')
+            page.get_by_role('button', name='Save guidance', exact=True).click()
+            page.get_by_role('heading', name='Publicly added standard').wait_for()
             assert not errors, errors
             browser.close()
             print('Knowledge Manager sign-in, validation, stale edits, create, edit and delete browser checks passed.')

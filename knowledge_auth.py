@@ -1,4 +1,4 @@
-"""Verify Entra access tokens directly; never trust caller-supplied identity headers."""
+"""Explicit public editing for testing, or verified Entra editor access by default."""
 import os
 import re
 from functools import lru_cache
@@ -9,7 +9,14 @@ from jwt import PyJWKClient
 from knowledge_manager import KnowledgeError
 
 
+def public_editing_enabled():
+    """Explicit deployment opt-in; never inferred from missing Entra settings."""
+    return os.getenv("POSTERIQ_KNOWLEDGE_ALLOW_ANONYMOUS_WRITES", "").strip().lower() == "true"
+
+
 def auth_config():
+    if public_editing_enabled():
+        return {"mode": "public"}
     tenant = os.getenv("POSTERIQ_KNOWLEDGE_TENANT_ID", "")
     audience = os.getenv("POSTERIQ_KNOWLEDGE_API_CLIENT_ID", "")
     spa_client = os.getenv("POSTERIQ_KNOWLEDGE_SPA_CLIENT_ID", "")
@@ -27,7 +34,9 @@ def signing_keys(tenant):
 
 
 def authorize_write(req):
-    config = auth_config()  # Missing configuration always fails closed.
+    if public_editing_enabled():
+        return {"oid": "anonymous"}
+    config = auth_config()  # Protected mode still fails closed without configuration.
     authorization = req.headers.get("Authorization", "")
     if not authorization.startswith("Bearer ") or len(authorization) > 16384:
         raise KnowledgeError("Sign in with an authorized Knowledge Editor account to make changes.", 401)

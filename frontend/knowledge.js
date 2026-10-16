@@ -27,8 +27,13 @@ async function initializeKnowledgeAuth() {
         const response = await fetch(`${API_BASE_URL}/knowledge/access`);
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "Knowledge editing is unavailable.");
-        if (!window.msal) throw new Error("The sign-in library could not load. Refresh to retry.");
         authConfiguration = data;
+        if (data.mode === "public") {
+            signInButton.hidden = true;
+            showStatus("You can add, edit and delete guidance. Sign-in is not required.");
+            return;
+        }
+        if (!window.msal) throw new Error("The sign-in library could not load. Refresh to retry.");
         authClient = new window.msal.PublicClientApplication({
             auth: {
                 clientId: data.client_id,
@@ -79,8 +84,10 @@ signInButton.addEventListener("click", async () => {
 });
 
 async function knowledgeWrite(url, method, payload, record) {
-    const token = await editorToken();
-    const headers = { Authorization: `Bearer ${token}` };
+    const headers = {};
+    if (authConfiguration?.mode !== "public") {
+        headers.Authorization = `Bearer ${await editorToken()}`;
+    }
     if (payload) headers["Content-Type"] = "application/json";
     if (record) {
         if (!record.etag) throw new Error("This guidance has no editable version. Reload the knowledge base.");
