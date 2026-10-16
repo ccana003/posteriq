@@ -250,7 +250,7 @@
             if (!ctsi) { ctx.fillStyle = orange; ctx.fillRect(r.x,r.y,4,headH); }
             const font = s.font_size*width/(document.width_in*72), lineH=font*1.25;
             ctx.font = `${font}px Arial`; ctx.fillStyle = "#253746";
-            let y = r.y+headH;
+            let y = r.y+headH+(ctsi ? Math.max(9,font*.65) : 0);
             if (!s.approved) { ctx.fillStyle = "#657a83"; ctx.fillText("Awaiting author approval",r.x+pad,y); ctx.restore(); return; }
             let body = s.text;
             const lines = C.wrap(ctx,body,r.w-pad*2);
