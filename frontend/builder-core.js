@@ -16,10 +16,25 @@ const PosterBuilderCore = (() => {
     }
     function arrange(sections, template) {
         const selected = TEMPLATES[template] || TEMPLATES["ctsi-1"];
+        if (selected.slots && sections.length > selected.slots.length) {
+            const columns = 3, rows = Math.ceil(sections.length / columns);
+            const gap = .012, margin = .025, top = .19, bottom = .025;
+            const w = (1 - 2*margin - gap*(columns-1))/columns;
+            const h = (1 - top - bottom - gap*(rows-1))/rows;
+            return sections.map((section,index)=>({...section,rect:{
+                x:margin+(index%columns)*(w+gap),y:top+Math.floor(index/columns)*(h+gap),w,h}}));
+        }
         if (selected.slots) {
             return sections.map((section, index) => {
                 const slot = selected.slots[index];
-                if (!slot) return {...section, rect: {x:.035,y:.19,w:.28,h:.18}};
+                if (!slot) {
+                    // More sections than CTSI panels: reflow all sections into a safe grid.
+                    const columns = 3, rows = Math.ceil(sections.length / columns);
+                    const gap = .012, margin = .025, top = .19, bottom = .025;
+                    const w = (1 - 2*margin - gap*(columns-1))/columns;
+                    const h = (1 - top - bottom - gap*(rows-1))/rows;
+                    return {...section, rect:{x:margin+(index%columns)*(w+gap),y:top+Math.floor(index/columns)*(h+gap),w,h}};
+                }
                 return {...section, rect:{x:slot[0],y:slot[1],w:slot[2],h:slot[3]}};
             });
         }
