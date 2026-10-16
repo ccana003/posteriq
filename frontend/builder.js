@@ -157,10 +157,19 @@
         const orange = theme.getPropertyValue("--brand-orange").trim() || "#f47321";
         const tint = theme.getPropertyValue("--brand-tint").trim() || "#f2f7f4";
         const ctsi = /^ctsi-[1-5]$/.test(document.template);
+        // Header image is loaded asynchronously; redraw once available.
+        const headerArt = window.__ctsiHeaderArt || (window.__ctsiHeaderArt = new Image());
+        if (ctsi && !headerArt.src) {
+            headerArt.onload = () => { if (target.isConnected) drawPoster(target, document); };
+            headerArt.src = "../CTSI_Original_Header.png";
+        }
         ctx.fillStyle = ctsi ? green : "white"; ctx.fillRect(0,0,width,height);
         if (!ctsi) {
             ctx.fillStyle = green; ctx.fillRect(0,0,width,height*.155);
             ctx.fillStyle = orange; ctx.fillRect(0,height*.155,width,6);
+        }
+        if (ctsi && headerArt.complete && headerArt.naturalWidth) {
+            ctx.drawImage(headerArt,0,0,width,height*.155);
         }
         ctx.fillStyle = "white"; ctx.font = "bold 32px Arial"; ctx.textBaseline = "top";
         const titles = C.wrap(ctx, document.title || "Your poster title", width-60);
