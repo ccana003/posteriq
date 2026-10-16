@@ -171,15 +171,20 @@
         if (ctsi && headerArt.complete && headerArt.naturalWidth) {
             ctx.drawImage(headerArt,0,0,width,height*.155);
         }
-        ctx.fillStyle = "white"; ctx.font = "bold 32px Arial"; ctx.textBaseline = "top";
-        const titles = C.wrap(ctx, document.title || "Your poster title", width-60);
+        // Reserve the right side for the CTSI logo and keep title/credits in distinct rows.
+        ctx.fillStyle = "white"; ctx.textBaseline = "top";
+        const textWidth = ctsi ? width*.61 : width-60;
+        const textX = 30;
+        ctx.font = ctsi ? "bold 29px Arial" : "bold 32px Arial";
+        const titles = C.wrap(ctx, document.title || "Your poster title", textWidth);
         if (titles.length > 2) issues.push("The title overflows its header. Shorten it before export.");
-        titles.slice(0,2).forEach((line,i) => ctx.fillText(line,30,18+i*35));
-        ctx.font = "17px Arial";
-        const credits = `${document.authors || "Author names"} · ${document.affiliations || "Affiliations"}`;
-        const creditLines = C.wrap(ctx,credits,width-60);
+        titles.slice(0,2).forEach((line,i) => ctx.fillText(line,textX,18+i*33));
+        ctx.font = ctsi ? "16px Arial" : "17px Arial";
+        const credits = [document.authors,document.affiliations].filter(Boolean).join(" · ") || "Author names · Affiliations";
+        const creditLines = C.wrap(ctx,credits,textWidth);
         if (creditLines.length > 2) issues.push("Author details overflow the header. Shorten them or adjust poster dimensions.");
-        creditLines.slice(0,2).forEach((line,i) => ctx.fillText(line,30,height*.155-45+i*20));
+        const creditY = ctsi ? height*.104 : height*.155-45;
+        creditLines.slice(0,2).forEach((line,i) => ctx.fillText(line,textX,creditY+i*19));
         document.sections.forEach(s => {
             const r = {x:s.rect.x*width,y:s.rect.y*height,w:s.rect.w*width,h:s.rect.h*height};
             ctx.save(); ctx.beginPath(); ctx.rect(r.x,r.y,r.w,r.h); ctx.clip();
