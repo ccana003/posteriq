@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   browser-checks:
-    name: Check builder and PDF review in Chromium
+    name: Check knowledge editing, builder and PDF review in Chromium
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
@@ -25,8 +25,9 @@ jobs:
         run: |
           python -m pip install --only-binary=:all: -r requirements.txt playwright
           python -m playwright install --with-deps chromium
-      - name: Exercise guided poster building and existing PDF mockups
+      - name: Exercise knowledge editing, guided poster building and existing PDF mockups
         run: |
+          python tests/browser_knowledge.py
           python tests/browser_builder.py
           python tests/browser_mockup.py
   build-zip:

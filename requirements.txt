@@ -3,3 +3,4 @@ azure-storage-blob
 azure-ai-documentintelligence
 PyMuPDF
 openai==1.60.2
+PyJWT[crypto]>=2.10.1,<3

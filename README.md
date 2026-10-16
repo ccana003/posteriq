@@ -219,3 +219,11 @@ legends, and stretch distorts image proportions; layout checks flag these choice
 Very crowded boards may constrain the image size or return to template slots:
 inspect fit warnings instead of shrinking scientific text silently. Live view,
 template comparison, consistency-review image and PNG export use the same renderer.
+
+## Knowledge Manager editing
+
+Authorized editors can add, edit and delete curated guidance, including internally
+developed standards. Setup requires Microsoft Entra API/SPA registrations, an
+editor role and the existing private knowledge container. See
+[configuration, concurrency and manual deployment instructions](docs/knowledge-manager.md).
+Public knowledge reads, poster review and poster building retain their existing behavior.

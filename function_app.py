@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import uuid
 import base64
@@ -16,6 +17,9 @@ from knowledge_base import (
     load_guidance_records,
     search_guidance
 )
+
+from knowledge_manager import KnowledgeError, KnowledgeStore
+from knowledge_auth import auth_config, authorize_write
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
@@ -739,21 +743,23 @@ def get_knowledge(req: func.HttpRequest) -> func.HttpResponse:
     Return curated PosterIQ knowledge records for the
     Knowledge Manager.
 
-    Read-only MVP endpoint.
+    Reads stay public; write versions come from the private blob documents.
     """
 
     try:
-        records = load_guidance_records()
-        
-        source_documents = {}
+        if os.getenv("POSTERIQ_STORAGE_CONNECTION_STRING"):
+            records, sources = KnowledgeStore().snapshot()
+        else:
+            records, sources = load_guidance_records(), []
+        source_documents = {source["knowledge_file"]: source for source in sources}
         public_records = []
 
         for record in records:
             guidance = record.get("guidance", {})
             source = record.get("source")
 
-            if source and source not in source_documents:
-                source_documents[source] = {
+            if source and record.get("_knowledge_file") not in source_documents:
+                source_documents[record.get("_knowledge_file")] = {
                     "title": source,
                     "organization": record.get("source_organization"),
                     "date": record.get("source_date"),
@@ -761,6 +767,7 @@ def get_knowledge(req: func.HttpRequest) -> func.HttpResponse:
                     "knowledge_file": record.get("_knowledge_file")
                 }
             public_records.append({
+                "etag": record.get("_etag"),
                 "reference_id": record.get("reference_id"),
                 "category": record.get("category"),
                 "knowledge_file": record.get("_knowledge_file"),
@@ -783,7 +790,8 @@ def get_knowledge(req: func.HttpRequest) -> func.HttpResponse:
                 "records": public_records
             }),
             mimetype="application/json",
-            status_code=200
+            status_code=200,
+            headers={"Cache-Control": "no-store"}
         )
 
     except Exception as exc:
@@ -801,9 +809,64 @@ def get_knowledge(req: func.HttpRequest) -> func.HttpResponse:
         )
 
 
-# Production Knowledge Manager is intentionally read-only.
-# POST / PUT / DELETE routes are not deployed until admin authentication
-# and authorization are implemented.
+def knowledge_error_response(exc):
+    headers = {"Cache-Control": "no-store"}
+    if exc.status == 401:
+        headers["WWW-Authenticate"] = 'Bearer realm="PosterIQ Knowledge Manager"'
+    return func.HttpResponse(json.dumps({"error": str(exc)}), status_code=exc.status,
+                             mimetype="application/json", headers=headers)
+
+
+@app.route(route="knowledge/access", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
+def knowledge_access(req: func.HttpRequest) -> func.HttpResponse:
+    """Public SPA registration identifiers only; never keys or credentials."""
+    try:
+        return func.HttpResponse(json.dumps(auth_config()), mimetype="application/json",
+                                 headers={"Cache-Control": "no-store"})
+    except KnowledgeError as exc:
+        return knowledge_error_response(exc)
+
+
+# The Functions host delegates authentication to explicit JWT verification below.
+# No code path reaches storage until authorize_write succeeds.
+@app.route(route="knowledge", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def create_knowledge(req: func.HttpRequest) -> func.HttpResponse:
+    return write_knowledge(req)
+
+
+@app.route(route="knowledge/{reference_id}", methods=["PUT", "DELETE"],
+           auth_level=func.AuthLevel.ANONYMOUS)
+def change_knowledge(req: func.HttpRequest) -> func.HttpResponse:
+    return write_knowledge(req)
+
+
+def write_knowledge(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        editor = authorize_write(req)
+        method = req.method.upper()
+        payload = None
+        if method != "DELETE":
+            if len(req.get_body()) > 65536:
+                raise KnowledgeError("Guidance request exceeds 64 KB.", 413)
+            try:
+                payload = req.get_json()
+            except ValueError as exc:
+                raise KnowledgeError("Send valid JSON guidance.") from exc
+        result = KnowledgeStore().mutate(
+            method, payload=payload, reference_id=req.route_params.get("reference_id"),
+            etag=req.headers.get("If-Match"), knowledge_file=req.params.get("knowledge_file"))
+        logging.info("Knowledge write completed: method=%s reference_id=%s editor=%s",
+                     method, result["reference_id"], editor["oid"])
+        return func.HttpResponse(json.dumps(result), status_code=201 if method == "POST" else 200,
+                                 mimetype="application/json", headers={"Cache-Control": "no-store"})
+    except KnowledgeError as exc:
+        return knowledge_error_response(exc)
+    except Exception as exc:
+        logging.error("Knowledge write failed (%s)", type(exc).__name__)
+        # Do not leak storage credentials, document contents, or token details.
+        return func.HttpResponse(json.dumps({"error": "Unable to save knowledge. Please retry or contact the administrator."}),
+                                 status_code=503, mimetype="application/json")
+
 
 @app.route(route="health", methods=["GET"])
 
