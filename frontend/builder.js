@@ -161,7 +161,7 @@
         const headerArt = window.__ctsiHeaderArt || (window.__ctsiHeaderArt = new Image());
         if (ctsi && !headerArt.src) {
             headerArt.onload = () => { if (canvas.isConnected) renderPoster(); };
-            headerArt.src = "../CTSI_Header_Clean_v2.png";
+            headerArt.src = "CTSI_Header_Clean_v2.png";
         }
         ctx.fillStyle = ctsi ? green : "white"; ctx.fillRect(0,0,width,height);
         if (!ctsi) {
