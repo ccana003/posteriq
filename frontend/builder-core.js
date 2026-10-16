@@ -2,15 +2,28 @@
 const PosterBuilderCore = (() => {
     const TEMPLATES = {
         three: {name: "Three columns · provisional", columns: 3},
-        two: {name: "Two columns · provisional", columns: 2}
+        two: {name: "Two columns · legacy", columns: 2},
+        "ctsi-1": {name: "CTSI Layout 1", columns: 3, slots: [[0.034,0.17,0.278,0.11],[0.034,0.297,0.278,0.39],[0.034,0.707,0.278,0.22],[0.354,0.17,0.278,0.3],[0.354,0.482,0.278,0.44],[0.687,0.17,0.278,0.58],[0.687,0.775,0.278,0.15]]},
+        "ctsi-2": {name: "CTSI Layout 2", columns: 3, slots: [[0.029,0.16,0.21,0.16],[0.029,0.337,0.21,0.35],[0.029,0.71,0.21,0.21],[0.273,0.17,0.21,0.75],[0.515,0.17,0.21,0.75],[0.76,0.16,0.21,0.49],[0.76,0.678,0.21,0.24]]},
+        "ctsi-3": {name: "CTSI Layout 3", columns: 3, slots: [[0.029,0.17,0.44,0.54],[0.029,0.738,0.21,0.19],[0.257,0.738,0.21,0.19],[0.52,0.17,0.21,0.37],[0.52,0.57,0.21,0.36],[0.748,0.17,0.21,0.54],[0.748,0.733,0.21,0.19]]},
+        "ctsi-4": {name: "CTSI Layout 4", columns: 3, slots: [[0.034,0.16,0.284,0.1],[0.034,0.277,0.284,0.47],[0.034,0.766,0.284,0.16],[0.363,0.172,0.21,0.76],[0.596,0.17,0.368,0.24],[0.596,0.427,0.368,0.27],[0.596,0.722,0.368,0.2]]},
+        "ctsi-5": {name: "CTSI Layout 5", columns: 3, slots: [[0.034,0.17,0.278,0.1],[0.034,0.293,0.278,0.39],[0.034,0.707,0.278,0.22],[0.354,0.17,0.278,0.3],[0.354,0.49,0.278,0.44],[0.687,0.17,0.278,0.57],[0.687,0.768,0.278,0.16]]}
     };
     function createDocument() {
         return {version: 1, poster_type: "research", title: "", authors: "", affiliations: "",
             audience: "", event_requirements: "", width_in: 48, height_in: 36,
-            template: "three", sections: [], plan_notes: [], revision: 0, review: null};
+            template: "ctsi-1", sections: [], plan_notes: [], revision: 0, review: null};
     }
     function arrange(sections, template) {
-        const columns = TEMPLATES[template].columns;
+        const selected = TEMPLATES[template] || TEMPLATES["ctsi-1"];
+        if (selected.slots) {
+            return sections.map((section, index) => {
+                const slot = selected.slots[index];
+                if (!slot) return {...section, rect: {x:.035,y:.19,w:.28,h:.18}};
+                return {...section, rect:{x:slot[0],y:slot[1],w:slot[2],h:slot[3]}};
+            });
+        }
+        const columns = selected.columns;
         const rows = Math.max(1, Math.ceil(sections.length / columns));
         const gap = .015, margin = .025, top = .19, bottom = .025;
         const width = (1 - margin * 2 - gap * (columns - 1)) / columns;
