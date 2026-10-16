@@ -69,8 +69,11 @@ It verifies RS256 signatures, issuer, API audience, tenant, expiry, not-before,
 identity claims, delegated scope, and editor role. Identity tokens and tokens
 for the SPA or another API cannot authorize writes.
 
-The frontend loads the pinned MSAL browser library from `cdn.jsdelivr.net` and
-uses popup authorization code/PKCE sign-in with session storage. Allow that host
+The frontend loads the pinned MSAL browser library from `cdn.jsdelivr.net` with
+a SHA-384 integrity check and anonymous CORS, and
+uses popup authorization code/PKCE sign-in with session storage. Explicit sign-in
+always opens account selection, and subsequent silent requests use the selected
+active account. Allow that host
 and Microsoft login endpoints in any frontend CSP. `knowledge-auth.html` is a
 minimal same-origin popup return page. Tokens stay out of URLs and logs.
 The backend does not require Easy Auth; if it is enabled separately, ensure its

@@ -29,13 +29,28 @@ def main():
             public_mode = [False]
             page.on('pageerror', lambda error: errors.append(str(error)))
             page.on('dialog', lambda dialog: dialog.accept())
-            # Identity provider is stubbed, but the real page and all UI handlers run.
+            # Replace the CDN script with an identity-provider double. Its contents
+            # differ, so remove SRI only from the test-served HTML. Production keeps SRI.
+            import re
+            test_html = re.sub(r' integrity="[^"]+"', '', (frontend / 'knowledge.html').read_text())
+            page.route('**/knowledge.html', lambda route: route.fulfill(
+                content_type='text/html', body=test_html))
+            # The real page and all UI handlers still run.
             page.route('**/msal-browser.min.js', lambda route: route.fulfill(
                 content_type='application/javascript', body='''window.msal = { PublicClientApplication: class {
                     async initialize() {}
-                    getAllAccounts() { return window.signedIn ? [{}] : []; }
-                    async acquireTokenSilent() { return {accessToken: "test-editor-token"}; }
-                    async acquireTokenPopup() { window.signedIn = true; return {accessToken: "test-editor-token"}; }
+                    getAllAccounts() { return window.signedIn ? [{username: "wrong-account"}] : []; }
+                    getActiveAccount() { return window.activeAccount || null; }
+                    setActiveAccount(account) { window.activeAccount = account; }
+                    async acquireTokenSilent(options) {
+                        window.lastSilentAccount = options.account;
+                        return {accessToken: "test-editor-token"};
+                    }
+                    async acquireTokenPopup(options) {
+                        window.popupOptions = options;
+                        window.signedIn = true;
+                        return {accessToken: "test-editor-token", account: {username: "editor"}};
+                    }
                 }};'''))
             records = [{'reference_id': 'RULE-1', 'category': 'readability', 'title': 'Original guidance',
                         'text': 'Original standard', 'knowledge_file': 'guide.json', 'etag': '"v1"',
@@ -82,8 +97,11 @@ def main():
             assert not captured
             assert page.locator('#guidanceTitle').input_value() == 'Edited guidance'
             page.locator('#cancelGuidanceButton').click()
+            page.evaluate('window.signedIn = true')  # A cached non-editor must not suppress the picker.
             page.locator('#knowledgeSignIn').click()
             page.get_by_text('Signed in. Changes require the Knowledge Editor role.', exact=True).wait_for()
+            assert page.evaluate('window.popupOptions.prompt') == 'select_account'
+            assert page.evaluate('window.activeAccount.username') == 'editor'
             page.get_by_role('button', name='Edit', exact=True).click()
             page.locator('#guidanceTitle').fill('Edited guidance')
             # Validation, authentication, authorization, and stale-write errors retain drafts.
@@ -95,6 +113,7 @@ def main():
                 page.locator('#guidanceFormStatus').filter(has_text=text).wait_for()
                 assert page.locator('#guidanceTitle').input_value() == 'Edited guidance'
                 assert page.locator('#guidanceModal').is_visible()
+            assert page.evaluate('window.lastSilentAccount.username') == 'editor'
             response_status[0] = 200
             page.get_by_role('button', name='Save guidance', exact=True).click()
             page.get_by_role('heading', name='Edited guidance').wait_for()

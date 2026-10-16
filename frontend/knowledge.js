@@ -52,8 +52,8 @@ async function initializeKnowledgeAuth() {
 
 async function editorToken(interactive = false) {
     if (!authClient) throw new Error("Knowledge editing is not configured or sign-in could not load.");
-    const account = authClient.getAllAccounts()[0];
-    if (account) {
+    const account = authClient.getActiveAccount() || authClient.getAllAccounts()[0];
+    if (account && !interactive) {
         try {
             return (await authClient.acquireTokenSilent({
                 account, scopes: [authConfiguration.scope]
@@ -64,7 +64,10 @@ async function editorToken(interactive = false) {
     } else if (!interactive) {
         throw new Error("Click Sign in to edit before saving or deleting guidance.");
     }
-    const result = await authClient.acquireTokenPopup({ scopes: [authConfiguration.scope] });
+    const result = await authClient.acquireTokenPopup({
+        scopes: [authConfiguration.scope], prompt: "select_account"
+    });
+    authClient.setActiveAccount(result.account);
     return result.accessToken;
 }
 
