@@ -160,7 +160,7 @@
         // Header image is loaded asynchronously; redraw once available.
         const headerArt = window.__ctsiHeaderArt || (window.__ctsiHeaderArt = new Image());
         if (ctsi && !headerArt.src) {
-            headerArt.onload = () => { if (target.isConnected) drawPoster(target, document); };
+            headerArt.onload = () => { if (canvas.isConnected) renderPoster(); };
             headerArt.src = "../CTSI_Header_Branding_Only.png";
         }
         ctx.fillStyle = ctsi ? green : "white"; ctx.fillRect(0,0,width,height);
@@ -446,12 +446,19 @@
             if(!doc.sections.includes(s))return;s.imageData=data;s.figure_fitted=false;s.approved=false;changed();preloadImages();approvalStatus();renderPoster();if(current()===s){$("figureThumbnail").hidden=false;$("figureThumbnail").src=s.imageData;}message("Figure added. Describe what it shows, add its caption, and approve it.");
         }catch(error){message(error.message,true);}finally{event.target.value="";}
     });
-    function switchTemplate(name){doc.template=name;doc.sections=arrangePoster(doc.sections,name);changed();renderAll();message("Layout changed. Approved wording is unchanged; check fit and figure sizes.");}
+    function switchTemplate(name){
+        if (!C.TEMPLATES[name]) { message("Unknown poster layout.",true); return; }
+        if (doc.template === name) return;
+        doc.template=name;
+        doc.sections=arrangePoster(doc.sections,name);
+        changed();renderAll();
+        message("Layout changed. Approved wording and figures are unchanged; check fit and figure sizes.");
+    }
     $("builderTemplate").addEventListener("change",()=>switchTemplate($("builderTemplate").value));
     $("builderZoom").addEventListener("change",fitStage);new ResizeObserver(fitStage).observe($("builderViewport"),{box:"border-box"});
     $("compareTemplates").addEventListener("click",()=>{
         $("templateOptions").replaceChildren();
-        Object.entries(C.TEMPLATES).forEach(([id,template])=>{
+        Object.entries(C.TEMPLATES).filter(([id])=>id.startsWith("ctsi-")).forEach(([id,template])=>{
             const option=node("article"),title=node("h3",template.name),preview=document.createElement("canvas");
             const issues=drawPoster(preview,{...doc,template:id,sections:arrangePoster(doc.sections,id)});
             const warnings=node("p",issues.length?`${issues.length} fit warnings — inspect before choosing.`:"No text overflow detected in this layout.");
