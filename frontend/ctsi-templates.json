@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "status": "integration-pending",
+  "source": "University of Miami CTSI five-layout PowerPoint set",
+  "templates": [
+    {
+      "id": "ctsi-1",
+      "name": "CTSI Layout 1",
+      "powerpoint": "CTSI_Layout_1.pptx",
+      "preview": null,
+      "layoutDefinition": null
+    },
+    {
+      "id": "ctsi-2",
+      "name": "CTSI Layout 2",
+      "powerpoint": "CTSI_Layout_2.pptx",
+      "preview": null,
+      "layoutDefinition": null
+    },
+    {
+      "id": "ctsi-3",
+      "name": "CTSI Layout 3",
+      "powerpoint": "CTSI_Layout_3.pptx",
+      "preview": null,
+      "layoutDefinition": null
+    },
+    {
+      "id": "ctsi-4",
+      "name": "CTSI Layout 4",
+      "powerpoint": "CTSI_Layout_4.pptx",
+      "preview": null,
+      "layoutDefinition": null
+    },
+    {
+      "id": "ctsi-5",
+      "name": "CTSI Layout 5",
+      "powerpoint": "CTSI_Layout_5.pptx",
+      "preview": null,
+      "layoutDefinition": null
+    }
+  ]
+}
