@@ -171,20 +171,37 @@
         if (ctsi && headerArt.complete && headerArt.naturalWidth) {
             ctx.drawImage(headerArt,0,0,width,height*.155);
         }
-        // Reserve the right side for the CTSI logo and keep title/credits in distinct rows.
+        // CTSI text occupies the left portion of the artwork, above the first content panels.
         ctx.fillStyle = "white"; ctx.textBaseline = "top";
-        const textWidth = ctsi ? width*.61 : width-60;
-        const textX = 30;
-        ctx.font = ctsi ? "bold 29px Arial" : "bold 32px Arial";
-        const titles = C.wrap(ctx, document.title || "Your poster title", textWidth);
-        if (titles.length > 2) issues.push("The title overflows its header. Shorten it before export.");
-        titles.slice(0,2).forEach((line,i) => ctx.fillText(line,textX,18+i*33));
-        ctx.font = ctsi ? "16px Arial" : "17px Arial";
+        const textX = 30, textWidth = ctsi ? width*.61 : width-60;
+        const headerLimit = height*.155;
+        ctx.save();
+        if (ctsi) { ctx.beginPath(); ctx.rect(textX,0,textWidth,headerLimit-5); ctx.clip(); }
+        let titleSize = ctsi ? 29 : 32;
+        let titles;
+        do {
+            ctx.font = `bold ${titleSize}px Arial`;
+            titles = C.wrap(ctx,document.title || "Your poster title",textWidth);
+            if (titles.length <= 2 || titleSize <= 20) break;
+            titleSize -= 1;
+        } while (true);
+        if (titles.length > 2) issues.push("The title is too long for the CTSI header; shorten it before export.");
+        const titleY = 18, titleLineHeight = titleSize*1.13;
+        titles.slice(0,2).forEach((line,i)=>ctx.fillText(line,textX,titleY+i*titleLineHeight));
         const credits = [document.authors,document.affiliations].filter(Boolean).join(" · ") || "Author names · Affiliations";
-        const creditLines = C.wrap(ctx,credits,textWidth);
-        if (creditLines.length > 2) issues.push("Author details overflow the header. Shorten them or adjust poster dimensions.");
-        const creditY = ctsi ? height*.104 : height*.155-45;
-        creditLines.slice(0,2).forEach((line,i) => ctx.fillText(line,textX,creditY+i*19));
+        const creditY = ctsi ? Math.max(76,titleY+Math.min(titles.length,2)*titleLineHeight+9) : headerLimit-45;
+        const creditSpace = Math.max(0,headerLimit-creditY-10);
+        let creditSize = ctsi ? 16 : 17, creditLines;
+        do {
+            ctx.font = `${creditSize}px Arial`;
+            creditLines = C.wrap(ctx,credits,textWidth);
+            if (creditLines.length*creditSize*1.2 <= creditSpace || creditSize <= 11) break;
+            creditSize -= 1;
+        } while (true);
+        const maxCreditLines = ctsi ? Math.max(0,Math.floor(creditSpace/(creditSize*1.2))) : 2;
+        if (creditLines.length > maxCreditLines) issues.push("Authors and affiliations do not fit in the CTSI header. Shorten the list or adjust the poster.");
+        creditLines.slice(0,maxCreditLines).forEach((line,i)=>ctx.fillText(line,textX,creditY+i*creditSize*1.2));
+        ctx.restore();
         document.sections.forEach(s => {
             const r = {x:s.rect.x*width,y:s.rect.y*height,w:s.rect.w*width,h:s.rect.h*height};
             ctx.save(); ctx.beginPath(); ctx.rect(r.x,r.y,r.w,r.h); ctx.clip();
