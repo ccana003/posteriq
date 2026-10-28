@@ -148,6 +148,47 @@
         const widthChange=Math.abs(dx/start.w)>=Math.abs(dy/start.h)?dx:dy*start.w/start.h;
         return fitFigureRect({...s,rect:start},start.w+widthChange);
     }
+
+    function drawEacArtwork(ctx, width, height, document, issues) {
+        const sx=width/1200, sy=height/900;
+        ctx.save(); ctx.scale(sx,sy);
+        ctx.fillStyle="#eeeeee";ctx.fillRect(0,0,1200,900);
+        // Pale slide-master geometry and institutional dot motif.
+        ctx.fillStyle="#f8f8f8";ctx.beginPath();ctx.moveTo(0,165);ctx.lineTo(1000,165);ctx.lineTo(0,720);ctx.fill();
+        for(let row=0;row<12;row++)for(let col=0;col<15;col++){
+            const x=935+col*18+(row%2)*6,y=9+row*17;
+            if(x>1190)continue;
+            const accent=(row*17+col*11)%23===0;
+            ctx.fillStyle=accent?"#f47321":((row+col)%4===0?"#b9bec0":"#d5d8d9");
+            ctx.beginPath();ctx.arc(x,y,accent?3.2:2.4,0,Math.PI*2);ctx.fill();
+        }
+        ctx.fillStyle="#fff";ctx.beginPath();ctx.roundRect(25,155,1150,687,16);ctx.fill();
+        // The EAC master has an orange title, dark-green summary and spectrum lines.
+        ctx.fillStyle="#f36f21";ctx.font="bold 37px Arial";ctx.textBaseline="top";
+        let titleSize=37,titleLines=[];
+        do {ctx.font=`bold ${titleSize}px Arial`;titleLines=C.wrap(ctx,document.title||"Title for the research study",840);titleSize--;}while(titleLines.length>2&&titleSize>22);
+        titleLines.slice(0,2).forEach((line,i)=>ctx.fillText(line,29,18+i*(titleSize+7)));
+        if(titleLines.length>2)issues.push("EAC title exceeds two lines; shorten it.");
+        ctx.fillStyle="#005030";ctx.font="bold 17px Arial";
+        const subtitle=document.affiliations||"A 1-sentence description of the study";
+        ctx.fillText(C.wrap(ctx,subtitle,840)[0]||"",30,92);
+        ctx.font="bold 15px Arial";ctx.fillText("Translational Science Spectrum: Pre-Clinical Research  |  Clinical Research  |  Clinical Implementation  |  Public Health",30,124);
+        // CTSI institutional mark at the upper right.
+        ctx.fillStyle="#005030";ctx.font="bold 9px Georgia";ctx.fillText("UNIVERSITY OF MIAMI",1000,24);
+        ctx.fillStyle="#f36f21";ctx.font="bold 13px Georgia";
+        ["CLINICAL &","TRANSLATIONAL","SCIENCE INSTITUTE"].forEach((line,i)=>ctx.fillText(line,1000,39+i*15));
+        ctx.fillStyle="#005030";ctx.fillRect(1000,91,165,2);
+        ctx.fillStyle="#f36f21";ctx.font="bold 38px Georgia";ctx.fillText("U",1010,94);
+        ctx.fillStyle="#005030";ctx.fillText("M",1035,94);
+        // Dedicated fixed footer: never occupied by editable content.
+        ctx.fillStyle="#aab2b5";ctx.beginPath();ctx.roundRect(25,848,1150,45,23);ctx.fill();
+        ctx.fillStyle="#fff";ctx.font="italic 10px Arial";
+        const footer="This project was supported by the National Center for Advancing Translational Sciences of the National Institutes of Health (NIH) under Award Number UM1TR004556. The content is solely the responsibility of the authors and does not necessarily represent the official views of the NIH.";
+        const lines=C.wrap(ctx,footer,1070);lines.slice(0,2).forEach((line,i)=>ctx.fillText(line,65,861+i*12));
+        ctx.font="italic 10px Arial";ctx.fillText(document.authors||"List of authors",500,851);
+        ctx.restore();
+    }
+
     function drawPoster(target, document) {
         const width = 1200, height = Math.round(width * document.height_in / document.width_in);
         target.width = width; target.height = height;
@@ -156,6 +197,7 @@
         const green = theme.getPropertyValue("--brand-green").trim() || "#005030";
         const orange = theme.getPropertyValue("--brand-orange").trim() || "#f47321";
         const tint = theme.getPropertyValue("--brand-tint").trim() || "#f2f7f4";
+        const eac = /^ctsi-[67]$/.test(document.template);
         const ctsi = /^ctsi-[1-5]$/.test(document.template);
         // Header image is loaded asynchronously; redraw once available.
         const headerArt = window.__ctsiHeaderArt || (window.__ctsiHeaderArt = new Image());
@@ -164,7 +206,8 @@
             headerArt.src = "CTSI_Header_Clean_v2.png";
         }
         ctx.fillStyle = ctsi ? green : "white"; ctx.fillRect(0,0,width,height);
-        if (!ctsi) {
+        if (eac) drawEacArtwork(ctx,width,height,document,issues);
+        if (!ctsi && !eac) {
             ctx.fillStyle = green; ctx.fillRect(0,0,width,height*.155);
             ctx.fillStyle = orange; ctx.fillRect(0,height*.155,width,6);
         }
@@ -172,10 +215,11 @@
             ctx.drawImage(headerArt,0,0,width,height*.155);
         }
         // CTSI text occupies the left portion of the artwork, above the first content panels.
-        ctx.fillStyle = "white"; ctx.textBaseline = "top";
+        if (!eac) { ctx.fillStyle = "white"; ctx.textBaseline = "top"; }
         const textX = 30, textWidth = ctsi ? width*.61 : width-60;
         const headerLimit = height*.155;
         ctx.save();
+        if (eac) { ctx.beginPath();ctx.rect(0,0,0,0);ctx.clip(); }
         if (ctsi) { ctx.beginPath(); ctx.rect(textX,0,textWidth,headerLimit-5); ctx.clip(); }
         let titleSize = ctsi ? 29 : 32;
         let titles;
@@ -205,10 +249,10 @@
         document.sections.forEach(s => {
             const r = {x:s.rect.x*width,y:s.rect.y*height,w:s.rect.w*width,h:s.rect.h*height};
             ctx.save(); ctx.beginPath(); ctx.rect(r.x,r.y,r.w,r.h); ctx.clip();
-            ctx.fillStyle = ctsi ? "#ffffff" : tint;
+            ctx.fillStyle = eac ? "#ffffff" : (ctsi ? "#ffffff" : tint);
             if (ctsi) {
                 ctx.beginPath(); ctx.roundRect(r.x,r.y,r.w,r.h,Math.min(12,r.w*.04,r.h*.08)); ctx.fill();
-            } else ctx.fillRect(r.x,r.y,r.w,r.h);
+            } else if (!eac) ctx.fillRect(r.x,r.y,r.w,r.h);
             if(s.kind==="figure") {
                 const image=images.get(s.imageData),m=figureMetrics(s,document,ctx,image,r.w);
                 ctx.fillStyle=green;ctx.font=`bold ${m.headingSize}px Arial`;
@@ -241,16 +285,20 @@
             const pad = 12, headingSize = Math.max(12, s.font_size*1.2*width/(document.width_in*72));
             ctx.fillStyle = ctsi ? "#ffffff" : green; ctx.font = `bold ${headingSize}px Arial`;
             const heads = C.wrap(ctx,s.title,r.w-pad*2), headH=heads.length*(headingSize*1.2)+pad*2;
-            if (ctsi) {
+            if (eac) {
+                ctx.fillStyle = green;
+                ctx.beginPath();ctx.roundRect(r.x,r.y,r.w,headH,headH/2);ctx.fill();
+                ctx.fillStyle = "#ffffff";
+            } else if (ctsi) {
                 ctx.fillStyle = orange;
                 ctx.beginPath(); ctx.roundRect(r.x,r.y,r.w,headH,[10,10,0,0]); ctx.fill();
                 ctx.fillStyle = "#ffffff";
             }
             heads.forEach((line,i)=>ctx.fillText(line,r.x+pad,r.y+pad+i*headingSize*1.2));
-            if (!ctsi) { ctx.fillStyle = orange; ctx.fillRect(r.x,r.y,4,headH); }
+            if (!ctsi && !eac) { ctx.fillStyle = orange; ctx.fillRect(r.x,r.y,4,headH); }
             const font = s.font_size*width/(document.width_in*72), lineH=font*1.25;
             ctx.font = `${font}px Arial`; ctx.fillStyle = "#253746";
-            let y = r.y+headH+(ctsi ? Math.max(9,font*.65) : 0);
+            let y = r.y+headH+((ctsi||eac) ? Math.max(9,font*.65) : 0);
             if (!s.approved) { ctx.fillStyle = "#657a83"; ctx.fillText("Awaiting author approval",r.x+pad,y); ctx.restore(); return; }
             let body = s.text;
             const lines = C.wrap(ctx,body,r.w-pad*2);
