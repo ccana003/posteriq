@@ -1,7 +1,7 @@
 {
   "version": 1,
   "status": "layout-geometry-mapped",
-  "source": "University of Miami CTSI five-layout PowerPoint set",
+  "source": "University of Miami CTSI five-layout set plus CTSI Pilots/EAC two-slide PowerPoint",
   "templates": [
     {
       "id": "ctsi-1",
@@ -357,6 +357,216 @@
           "h": 0.032
         }
       }
+    },
+    {
+      "id": "ctsi-6",
+      "name": "CTSI Pilots/EAC – Completed Research",
+      "powerpoint": "CTSI-Pilots-EAC_Poster_template_10.27.26.pptx",
+      "sourceSlide": 1,
+      "preview": null,
+      "layoutDefinition": {
+        "panelRegions": [
+          {
+            "id": "panel-1",
+            "x": 0.037,
+            "y": 0.213,
+            "w": 0.278,
+            "h": 0.254
+          },
+          {
+            "id": "panel-2",
+            "x": 0.037,
+            "y": 0.467,
+            "w": 0.274,
+            "h": 0.22
+          },
+          {
+            "id": "panel-3",
+            "x": 0.044,
+            "y": 0.749,
+            "w": 0.277,
+            "h": 0.165
+          },
+          {
+            "id": "panel-4",
+            "x": 0.363,
+            "y": 0.172,
+            "w": 0.274,
+            "h": 0.093
+          },
+          {
+            "id": "panel-5",
+            "x": 0.362,
+            "y": 0.284,
+            "w": 0.274,
+            "h": 0.183
+          },
+          {
+            "id": "panel-6",
+            "x": 0.356,
+            "y": 0.543,
+            "w": 0.286,
+            "h": 0.183
+          },
+          {
+            "id": "panel-7",
+            "x": 0.358,
+            "y": 0.726,
+            "w": 0.274,
+            "h": 0.183
+          },
+          {
+            "id": "panel-8",
+            "x": 0.691,
+            "y": 0.169,
+            "w": 0.274,
+            "h": 0.182
+          },
+          {
+            "id": "panel-9",
+            "x": 0.684,
+            "y": 0.443,
+            "w": 0.274,
+            "h": 0.183
+          },
+          {
+            "id": "panel-10",
+            "x": 0.685,
+            "y": 0.701,
+            "w": 0.286,
+            "h": 0.152
+          }
+        ],
+        "headerRegion": {
+          "x": 0.021,
+          "y": 0.028,
+          "w": 0.864,
+          "h": 0.128
+        },
+        "footerRegion": {
+          "x": 0.021,
+          "y": 0.931,
+          "w": 0.961,
+          "h": 0.065
+        }
+      },
+      "requiredContent": [
+        "Clinical and Translational Science gaps",
+        "Community engagement plan",
+        "CTS implications",
+        "Community engagement implications"
+      ],
+      "sectionHeadings": [
+        "INTRODUCTION AND BACKGROUND",
+        "DATA AND METHODS",
+        "RESULTS / PRELIMINARY FINDINGS",
+        "CONCLUSIONS AND FUTURE DIRECTIONS"
+      ]
+    },
+    {
+      "id": "ctsi-7",
+      "name": "CTSI Pilots/EAC – Research in Progress",
+      "powerpoint": "CTSI-Pilots-EAC_Poster_template_10.27.26.pptx",
+      "sourceSlide": 2,
+      "preview": null,
+      "layoutDefinition": {
+        "panelRegions": [
+          {
+            "id": "panel-1",
+            "x": 0.037,
+            "y": 0.213,
+            "w": 0.278,
+            "h": 0.254
+          },
+          {
+            "id": "panel-2",
+            "x": 0.037,
+            "y": 0.467,
+            "w": 0.274,
+            "h": 0.22
+          },
+          {
+            "id": "panel-3",
+            "x": 0.044,
+            "y": 0.749,
+            "w": 0.277,
+            "h": 0.165
+          },
+          {
+            "id": "panel-4",
+            "x": 0.363,
+            "y": 0.172,
+            "w": 0.274,
+            "h": 0.093
+          },
+          {
+            "id": "panel-5",
+            "x": 0.362,
+            "y": 0.284,
+            "w": 0.274,
+            "h": 0.183
+          },
+          {
+            "id": "panel-6",
+            "x": 0.356,
+            "y": 0.543,
+            "w": 0.286,
+            "h": 0.183
+          },
+          {
+            "id": "panel-7",
+            "x": 0.358,
+            "y": 0.726,
+            "w": 0.274,
+            "h": 0.183
+          },
+          {
+            "id": "panel-8",
+            "x": 0.691,
+            "y": 0.169,
+            "w": 0.274,
+            "h": 0.182
+          },
+          {
+            "id": "panel-9",
+            "x": 0.684,
+            "y": 0.443,
+            "w": 0.274,
+            "h": 0.183
+          },
+          {
+            "id": "panel-10",
+            "x": 0.685,
+            "y": 0.701,
+            "w": 0.286,
+            "h": 0.152
+          }
+        ],
+        "headerRegion": {
+          "x": 0.021,
+          "y": 0.028,
+          "w": 0.864,
+          "h": 0.128
+        },
+        "footerRegion": {
+          "x": 0.021,
+          "y": 0.931,
+          "w": 0.961,
+          "h": 0.065
+        }
+      },
+      "requiredContent": [
+        "Clinical and Translational Science gaps",
+        "Community engagement plan",
+        "CTS implications",
+        "Community engagement implications"
+      ],
+      "sectionHeadings": [
+        "INTRODUCTION AND BACKGROUND",
+        "DATA AND METHODS",
+        "PRELIMINARY DATA / FINDINGS",
+        "NEXT STEPS AND FUTURE DIRECTIONS"
+      ]
     }
   ],
   "coordinateSystem": "normalized poster width/height (0–1)",
@@ -364,5 +574,5 @@
     "width": 48,
     "height": 36
   },
-  "notes": "Panel regions approximated from original PPTX slide text/header positions; verify against full graphic elements before rendering. Existing builder layout engine not yet changed."
+  "notes": "Panel regions approximated from original PPTX slide text/header positions; verify against full graphic elements before rendering. Existing builder layout engine not yet changed. EAC panel coordinates mapped from slide text boxes; browser mockups do not reproduce the PowerPoint artwork."
 }
