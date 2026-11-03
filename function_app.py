@@ -3,6 +3,8 @@ import logging
 import os
 import uuid
 import base64
+import time
+from functools import wraps
 
 import azure.functions as func
 import pymupdf
@@ -1376,7 +1378,27 @@ def review_poster(req: func.HttpRequest) -> func.HttpResponse:
         )
 
 
+def log_builder_duration(handler):
+    """Record server-side AI workflow latency without logging research content."""
+    @wraps(handler)
+    def measured(req):
+        action = req.route_params.get("action", "unknown")
+        started = time.perf_counter()
+        status = 500
+        try:
+            response = handler(req)
+            status = response.status_code
+            return response
+        finally:
+            logging.info(
+                "PosterIQ performance workflow=builder_%s duration_ms=%.1f status=%d",
+                action, (time.perf_counter() - started) * 1000, status
+            )
+    return measured
+
+
 @app.route(route="builder/{action}", methods=["POST"])
+@log_builder_duration
 def poster_builder_action(req: func.HttpRequest) -> func.HttpResponse:
     """Stateless AI actions; the browser owns the author's editable document."""
     action = req.route_params.get("action")
