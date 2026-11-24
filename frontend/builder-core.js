@@ -12,7 +12,7 @@ const PosterBuilderCore = (() => {
         "ctsi-5": {name: "CTSI Layout 5", columns: 3, slots: [[0.034,0.17,0.278,0.1],[0.034,0.293,0.278,0.39],[0.034,0.707,0.278,0.22],[0.354,0.17,0.278,0.3],[0.354,0.49,0.278,0.44],[0.687,0.17,0.278,0.57],[0.687,0.768,0.278,0.16]]}
     };
     function createDocument() {
-        return {version: 1, poster_type: "research", title: "", authors: "", affiliations: "",
+        return {version: 1, poster_type: "research", title: "", short_title: "", authors: "", affiliations: "",
             audience: "", event_requirements: "", width_in: 48, height_in: 36,
             template: "ctsi-1", sections: [], plan_notes: [], revision: 0, review: null};
     }
@@ -61,8 +61,12 @@ const PosterBuilderCore = (() => {
         const active = sections.find(s => s.id === activeId);
         if (!active) return {sections, mode: "unchanged"};
         const anchor = {...active, rect: clampRect(desired)};
+        const top = /^ctsi-[67]$/.test(template) ? .19 : .17;
+        const bottom = /^ctsi-[67]$/.test(template) ? .94 : 1;
+        anchor.rect.h = Math.min(anchor.rect.h,bottom-top);
+        anchor.rect.y = Math.max(top,Math.min(bottom-anchor.rect.h,anchor.rect.y));
         const placed = [anchor], positions = new Map([[activeId, anchor.rect]]);
-        const others = sections.filter(s=>s.id!==activeId).sort((a,b)=>b.rect.w*b.rect.h-a.rect.w*a.rect.h);
+        const others = sections.filter(s=>s.id!==activeId).sort((a,b)=>Number(intersects(a.rect,anchor.rect))-Number(intersects(b.rect,anchor.rect)));
         for (const section of others) {
             const r = section.rect;
             const xs = new Set([r.x, .025, 1-.025-r.w]);
@@ -73,22 +77,14 @@ const PosterBuilderCore = (() => {
             });
             const candidates=[];
             for(const x of xs)for(const y of ys){
-                if(x<0||y<.17||x+r.w>1+.000001||y+r.h>1+.000001)continue;
+                if(x<0||y<top||x+r.w>1+.000001||y+r.h>bottom+.000001)continue;
                 const candidate={x,y,w:r.w,h:r.h};
                 if(!placed.some(s=>intersects(candidate,s.rect)))candidates.push(candidate);
             }
             candidates.sort((a,b)=>(a.x-r.x)**2+(a.y-r.y)**2-((b.x-r.x)**2+(b.y-r.y)**2));
             if(!candidates.length){
-                // Full boards cannot always retain custom sizes. Reorder template
-                // slots around the drop target rather than leaving items overlapping.
-                const target=sections.filter(s=>s.id!==activeId).sort((a,b)=>{
-                    const distance=s=>(s.rect.x+s.rect.w/2-anchor.rect.x-anchor.rect.w/2)**2+(s.rect.y+s.rect.h/2-anchor.rect.y-anchor.rect.h/2)**2;
-                    return distance(a)-distance(b);
-                })[0];
-                const ordered=sections.filter(s=>s.id!==activeId);
-                const insertion=target?ordered.findIndex(s=>s.id===target.id):0;
-                ordered.splice(Math.max(0,insertion),0,anchor);
-                return {sections:arrange(ordered,template), mode:"grid"};
+                // Keep requested dimensions; expose unresolved overlaps as warnings.
+                return {sections:sections.map(s=>s.id===activeId?anchor:s), mode:"crowded"};
             }
             positions.set(section.id,candidates[0]);placed.push({...section,rect:candidates[0]});
         }
@@ -133,6 +129,7 @@ const PosterBuilderCore = (() => {
             || !TEMPLATES[value.template] || !Array.isArray(value.sections) || value.sections.length > 20)
             throw new Error("This is not a supported PosterIQ builder draft.");
         const result = createDocument();
+        result.short_title = typeof value.short_title === "string" ? value.short_title.slice(0,100) : "";
         for (const key of ["title", "authors", "affiliations", "audience", "event_requirements"]) {
             if (typeof value[key] !== "string" || value[key].length > 12000) throw new Error("The saved poster contains invalid text.");
             result[key] = value[key];
@@ -173,6 +170,17 @@ const PosterBuilderCore = (() => {
         });
         return result;
     }
-    return {TEMPLATES, createDocument, arrange, clampRect, intersects, placeSection, wrap, warnings, validateImport};
+    function shortTitle(title) {
+        return String(title||"").split(/[:;]/)[0].trim().split(/\s+/).slice(0,6).join(" ").replace(/\bversus\b/gi,"vs").replace(/\s+for\s*$/i,"");
+    }
+    function exportName(doc, kind, date = new Date()) {
+        const clean = (v,max) => String(v||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,max).replace(/-+$/,"");
+        const first = String(doc.authors||"").split(/[,;\n]/)[0].trim().replace(/[\d¹²³⁴⁵⁶⁷⁸⁹⁰*†‡]+$/g,"").trim();
+        const author = clean(first.split(/\s+/).pop(),40)||"Author";
+        const title = clean(doc.short_title||shortTitle(doc.title),80)||"Untitled";
+        const day = [date.getFullYear(),String(date.getMonth()+1).padStart(2,"0"),String(date.getDate()).padStart(2,"0")].join("-");
+        return author+"_"+title+"_"+day+(kind==="draft"?"_Draft.json":"_Mockup.png");
+    }
+    return {shortTitle, exportName, TEMPLATES, createDocument, arrange, clampRect, intersects, placeSection, wrap, warnings, validateImport};
 })();
 if (typeof module !== "undefined") module.exports = PosterBuilderCore;

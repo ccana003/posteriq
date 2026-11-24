@@ -52,8 +52,9 @@
         syncSetup(); renderAll(); preloadImages();
     }
     function syncSetup() {
-        const fields = {posterTitle:"title", posterAuthors:"authors", posterAffiliations:"affiliations", posterAudience:"audience", organizerRequirements:"event_requirements", posterType:"poster_type", posterWidth:"width_in", posterHeight:"height_in", builderTemplate:"template"};
-        Object.entries(fields).forEach(([id,key]) => $(id).value = doc[key]);
+        const fields = {posterTitle:"title",posterShortTitle:"short_title", posterAuthors:"authors", posterAffiliations:"affiliations", posterAudience:"audience", organizerRequirements:"event_requirements", posterType:"poster_type", posterWidth:"width_in", posterHeight:"height_in", builderTemplate:"template"};
+        Object.entries(fields).forEach(([id,key]) => $(id).value = doc[key] || "");
+        $("posterShortTitle").placeholder=C.shortTitle(doc.title)||"Automatically suggested from title";
         $("posterType").disabled = Boolean(doc.sections.length);
         $("planPoster").textContent = doc.sections.length ? "Save details and return to sections" : "Create guided outline";
         $("manualOutline").hidden = Boolean(doc.sections.length);
@@ -318,15 +319,26 @@
     }
     function fitStage() {
         const zoom = $("builderZoom").value;
-        stage.style.width = `${zoom === "fit" ? Math.min(1200, Math.max(100,$("builderViewport").clientWidth-32), Math.max(100,$("builderViewport").clientHeight-32)*canvas.width/canvas.height) : 1200*Number(zoom)}px`;
+        stage.style.width = `${zoom === "fit" ? Math.min($("builderViewport").closest(".builder-preview").classList.contains("expanded")?Infinity:1200, Math.max(100,$("builderViewport").clientWidth-32), Math.max(100,$("builderViewport").clientHeight-32)*canvas.width/canvas.height) : 1200*Number(zoom)}px`;
     }
+    const undoStack=[],redoStack=[];
+    const layoutSnapshot=()=>({owner:doc,template:doc.template,rects:doc.sections.map(s=>({id:s.id,rect:{...s.rect}}))});
+    function historyButtons(){ $("undoLayout").disabled=!undoStack.length;$("redoLayout").disabled=!redoStack.length; }
+    function remember(snapshot=layoutSnapshot()){undoStack.push(snapshot);if(undoStack.length>40)undoStack.shift();redoStack.length=0;historyButtons();}
+    function restoreLayout(from,to){const state=from.pop();if(!state)return;if(state.owner!==doc||state.template!==doc.template||state.rects.length!==doc.sections.length||state.rects.some(r=>!doc.sections.some(s=>s.id===r.id))){from.length=0;to.length=0;historyButtons();message("Layout history was cleared because the poster structure changed.");return;}to.push(layoutSnapshot());for(const r of state.rects)doc.sections.find(s=>s.id===r.id).rect={...r.rect};changed();renderAll();historyButtons();}
+    $("undoLayout").onclick=()=>restoreLayout(undoStack,redoStack);
+    $("redoLayout").onclick=()=>restoreLayout(redoStack,undoStack);
+    function expandCanvas(on){const preview=$("builderViewport").closest(".builder-preview");preview.classList.toggle("expanded",on);document.body.classList.toggle("canvas-expanded",on);$("expandCanvas").textContent=on?"Exit expanded preview":"Expand preview";$("expandCanvas").setAttribute("aria-expanded",String(on));fitStage();}
+    $("expandCanvas").onclick=()=>expandCanvas($("expandCanvas").getAttribute("aria-expanded")!=="true");
+    canvas.addEventListener("click",()=>expandCanvas(true));
+    document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("expandCanvas").getAttribute("aria-expanded")==="true")expandCanvas(false);});
+    function snapPosition(rect,id){if(!$("snapGrid").checked)return rect;const r={...rect};for(const k of ["x","y"]){const size=k==="x"?"w":"h";const targets=[.025,.19,...doc.sections.filter(s=>s.id!==id).flatMap(s=>[s.rect[k],s.rect[k]+s.rect[size]+.012,s.rect[k]-r[size]-.012])];const closest=targets.sort((a,b)=>Math.abs(a-r[k])-Math.abs(b-r[k]))[0];if(Math.abs(closest-r[k])<.012)r[k]=closest;}return r;}
     function settleSection(id, rect, quiet=false) {
         const result=C.placeSection(doc.sections,id,rect,doc.template);
         doc.sections=result.sections;
         const active=doc.sections.find(s=>s.id===id);
         if(active?.kind==="figure"&&(active.image_sizing||"proportional")==="proportional"&&images.get(active.imageData)?.naturalWidth)active.figure_fitted=true;
-        if(result.mode==="grid")doc.sections=doc.sections.map(s=>s.kind==="figure"&&(s.image_sizing||"proportional")==="proportional"?{...s,rect:fitFigureRect(s,s.rect.w,s.rect.h)}:s);
-        if(!quiet&&result.mode==="grid")message("The board returned to template slots to prevent overlap. Wording and font sizes are unchanged; check text fit.");
+        if(!quiet&&result.mode==="crowded")message("Not enough space to separate all boxes. Your dimensions were retained; adjust overlapping sections.",true);
         else if(!quiet)message("Section placed. Other sections moved as needed to keep the board clear.");
     }
     function renderHandles() {
@@ -340,7 +352,7 @@
             item.addEventListener("keydown",event=>{
                 if (["Enter"," "].includes(event.key)) { event.preventDefault(); selected=s.id; renderAll(); }
                 else if (["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"].includes(event.key)) {
-                    event.preventDefault(); s.rect=C.clampRect({...s.rect,x:s.rect.x+(event.key==="ArrowRight"?.01:event.key==="ArrowLeft"?-.01:0),y:s.rect.y+(event.key==="ArrowDown"?.01:event.key==="ArrowUp"?-.01:0)}); settleSection(s.id,s.rect); changed(); renderSteps(); renderPoster(); updatePlacement();
+                    event.preventDefault(); remember(); s.rect=C.clampRect({...s.rect,x:s.rect.x+(event.key==="ArrowRight"?.01:event.key==="ArrowLeft"?-.01:0),y:s.rect.y+(event.key==="ArrowDown"?.01:event.key==="ArrowUp"?-.01:0)}); settleSection(s.id,s.rect); changed(); renderSteps(); renderPoster(); updatePlacement();
                     $("builderHandles").querySelector(`[data-section-id="${CSS.escape(s.id)}"]`)?.focus();
                 }
             });
@@ -348,7 +360,7 @@
                 if (event.button!==0) return;
                 event.preventDefault(); selected=s.id; renderSteps(); renderEditor();
                 $("builderHandles").querySelectorAll(".selected").forEach(e=>e.classList.remove("selected")); item.classList.add("selected");
-                const resizing=event.target===resize, start={...s.rect}, x=event.clientX,y=event.clientY, bounds=stage.getBoundingClientRect();
+                const snapshot=layoutSnapshot(), resizing=event.target===resize, start={...s.rect}, x=event.clientX,y=event.clientY, bounds=stage.getBoundingClientRect();
                 item.setPointerCapture(event.pointerId);
                 let moved=false;
                 const move=e=>{
@@ -358,7 +370,7 @@
                     Object.assign(item.style,{left:s.rect.x*100+"%",top:s.rect.y*100+"%",width:s.rect.w*100+"%",height:s.rect.h*100+"%"});
                     drawPoster(canvas,doc); updatePlacement();
                 };
-                const end=()=>{item.removeEventListener("pointermove",move); item.removeEventListener("pointerup",end); item.removeEventListener("pointercancel",end); if(moved){settleSection(s.id,s.rect);changed();renderSteps();updatePlacement();} renderPoster();};
+                const end=()=>{item.removeEventListener("pointermove",move); item.removeEventListener("pointerup",end); item.removeEventListener("pointercancel",end); if(moved){remember(snapshot);settleSection(s.id,resizing?s.rect:snapPosition(s.rect,s.id));changed();renderSteps();updatePlacement();} renderPoster();};
                 item.addEventListener("pointermove",move);item.addEventListener("pointerup",end);item.addEventListener("pointercancel",end);
             });
             $("builderHandles").append(item);
@@ -432,17 +444,18 @@
         const plans={research:["Background","Methods","Results","Conclusion","References and acknowledgments"],protocol:["Background and purpose","Study design","Planned analysis","Expected contribution and limitations","References and acknowledgments"],case:["Background","Case or model","Observations","Discussion and takeaway","References and acknowledgments"],narrative:["Scope and purpose","Background","Evidence and approach","Synthesis and takeaway","References and acknowledgments"]};
         acceptPlan({sections:plans[doc.poster_type].map((title,i)=>({id:`section-${i+1}`,title,purpose:`State the distinct contribution of ${title.toLowerCase()}.`,question:`What information and supporting references belong in ${title.toLowerCase()}?`,requirement_level:"recommended",sources:[]})),notes:["This is a suggested outline. Curated institutional requirements have not been checked. Paste organizer requirements into poster details and verify them before sharing."]});
     });
-    const metadata={posterTitle:"title",posterAuthors:"authors",posterAffiliations:"affiliations",posterAudience:"audience",organizerRequirements:"event_requirements",posterType:"poster_type",posterWidth:"width_in",posterHeight:"height_in"};
+    const metadata={posterTitle:"title",posterShortTitle:"short_title",posterAuthors:"authors",posterAffiliations:"affiliations",posterAudience:"audience",organizerRequirements:"event_requirements",posterType:"poster_type",posterWidth:"width_in",posterHeight:"height_in"};
     Object.entries(metadata).forEach(([id,key])=>$(id).addEventListener("input",()=>{
         if(key.endsWith("_in")){const value=Number($(id).value);if(!Number.isFinite(value)||value<12||value>96)return;doc[key]=value;}
         else doc[key]=$(id).value;
+        if(key==="title")$("posterShortTitle").placeholder=C.shortTitle(doc.title)||"Automatically suggested from title";
         changed();renderPoster();
     }));
     $("editSetup").addEventListener("click",()=>{syncSetup();$("setupForm").hidden=false;$("sectionEditor").hidden=true;});
     const edits={sectionPurposeInput:"purpose",sectionName:"title",sectionNotes:"notes",sectionText:"text",figureDescription:"figure_description",figureCaption:"caption"};
     Object.entries(edits).forEach(([id,key])=>$(id).addEventListener("input",()=>{
         const s=current();if(!s)return;s[key]=$(id).value;s.approved=false;
-        if(s.kind==="figure"&&key==="caption"&&(s.image_sizing||"proportional")==="proportional")settleSection(s.id,fitFigureRect(s),true);
+        // Caption edits preserve the existing region; fit explicitly if needed.
         changed();approvalStatus();renderSteps();renderPoster();
         if(key==="title")$("sectionTitle").textContent=s.title;
         if(key==="purpose")$("sectionPurpose").textContent=s.purpose;
@@ -469,12 +482,13 @@
     $("nextSection").addEventListener("click",()=>{const i=doc.sections.findIndex(s=>s.id===selected);selected=doc.sections[(i+1)%doc.sections.length]?.id;renderAll();});
     ["x","y","w","h"].forEach(k=>$("section"+k.toUpperCase()).addEventListener("change",()=>{
         const s=current(),value=Number($("section"+k.toUpperCase()).value);if(!s||!Number.isFinite(value))return;
+        remember();
         let rect=C.clampRect({...s.rect,[k]:value/100});
         if(s.kind==="figure"&&(s.image_sizing||"proportional")==="proportional"&&["w","h"].includes(k))rect=fitFigureRect(s,k==="w"?value/100:s.rect.w*(value/100)/s.rect.h);
         settleSection(s.id,rect);changed();updatePlacement();renderSteps();renderPoster();
     }));
-    $("sectionFont").addEventListener("change",()=>{const s=current(),value=Number($("sectionFont").value);if(!s||!Number.isFinite(value))return;s.font_size=Math.max(16,Math.min(72,value));if(s.kind==="figure"&&(s.image_sizing||"proportional")==="proportional")settleSection(s.id,fitFigureRect(s),true);changed();renderPoster();});
-    function reorder(delta){const i=doc.sections.findIndex(s=>s.id===selected),j=i+delta;if(j<0||j>=doc.sections.length)return;[doc.sections[i],doc.sections[j]]=[doc.sections[j],doc.sections[i]];doc.sections=arrangePoster(doc.sections,doc.template);changed();renderAll();}
+    $("sectionFont").addEventListener("change",()=>{const s=current(),value=Number($("sectionFont").value);if(!s||!Number.isFinite(value))return;s.font_size=Math.max(16,Math.min(72,value));changed();renderPoster();});
+    function reorder(delta){const i=doc.sections.findIndex(s=>s.id===selected),j=i+delta;if(j<0||j>=doc.sections.length)return;const a=doc.sections[i],b=doc.sections[j];const target={...a.rect,x:b.rect.x,y:b.rect.y};remember();settleSection(a.id,target);[doc.sections[i],doc.sections[j]]=[doc.sections[j],doc.sections[i]];changed();renderAll();}
     $("moveEarlier").addEventListener("click",()=>reorder(-1));$("moveLater").addEventListener("click",()=>reorder(1));
     function removeSection(id) {
         const index=doc.sections.findIndex(s=>s.id===id),s=doc.sections[index];
@@ -487,7 +501,7 @@
     function addSection(kind){
         if(doc.sections.length>=20){message("This poster already has 20 sections.",true);return;}
         const s={...sectionDefaults({id:crypto.randomUUID(),title:kind==="figure"?"Figure":"New section",purpose:kind==="figure"?"Show evidence and connect it to the poster’s message.":"Give this section a distinct purpose.",question:"What information should the reader take away?"}),kind};
-        doc.sections=arrangePoster([...doc.sections,s],doc.template);selected=s.id;changed();syncSetup();renderAll();
+        const initial=arrangePoster([...doc.sections,s],doc.template).pop();doc.sections=[...doc.sections,initial];settleSection(s.id,initial.rect,true);selected=s.id;changed();syncSetup();renderAll();
     }
     $("addTextSection").addEventListener("click",()=>addSection("text"));$("addFigure").addEventListener("click",()=>addSection("figure"));
     $("showFigureTitle").addEventListener("change",()=>{
@@ -538,7 +552,7 @@
     });
     $("closeTemplateDialog").addEventListener("click",()=>$("templateDialog").close());
     function download(blob,name){const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);}
-    $("backupDraft").addEventListener("click",()=>{download(new Blob([JSON.stringify(doc,null,2)],{type:"application/json"}),"posteriq-editable-draft.json");backupRevision=doc.revision;message("Editable draft download started. It includes your source notes and figures.");});
+    $("backupDraft").addEventListener("click",()=>{download(new Blob([JSON.stringify(doc,null,2)],{type:"application/json"}),C.exportName(doc,"draft"));backupRevision=doc.revision;message("Editable draft download started. It includes your source notes and figures.");});
     function figureImagesReady() {
         return doc.sections.filter(s=>s.kind==="figure"&&s.approved).every(s=>{
             const image=images.get(s.imageData);return image?.complete&&image.naturalWidth;
@@ -550,7 +564,7 @@
         renderPoster();const issues=[...C.warnings(doc),...drawPoster(canvas,doc)];
         if(issues.length&&!confirm(`${issues.length} layout/completion warnings remain. Download this draft mockup anyway?`))return;
         button.disabled=true;button.textContent="Preparing PNG…";message("Preparing the poster mockup PNG…");
-        canvas.toBlob(blob=>{button.disabled=false;button.textContent="Download mockup PNG";if(!blob){message("The PNG could not be prepared. Try again.",true);return;}download(blob,"posteriq-built-poster-mockup.png");message("Mockup PNG download started. Check your browser’s downloads.");},"image/png");
+        canvas.toBlob(blob=>{button.disabled=false;button.textContent="Download mockup PNG";if(!blob){message("The PNG could not be prepared. Try again.",true);return;}download(blob,C.exportName(doc,"mockup"));message("Mockup PNG download started. Check your browser’s downloads.");},"image/png");
     });
     $("importDraft").addEventListener("change",async event=>{
         const file=event.target.files[0];if(!file)return;
@@ -640,8 +654,8 @@
         figures.forEach(figure=>additions.push({...sectionDefaults({id:crypto.randomUUID(),title:figure.label,purpose:"Show article evidence; verify the original caption.",question:"What does this image show? Supply its caption and confirm it is complete."}),kind:"figure",imageData:figure.imageData,caption:(figure.caption||""),figure_description:(figure.caption||""),source_filename:articleResult.source_filename,source_page:figure.page,source_excerpts:[]}));
         const totalImageSize=[...(replacing?[]:doc.sections),...additions].reduce((n,s)=>n+(s.imageData||"").length,0);
         if(totalImageSize>8*1024*1024){$("articleStatus").textContent="Choose fewer image candidates to keep the editable draft under its size limit.";return;}
-        if(replacing)doc={...C.createDocument(),title:oldDoc.title,authors:oldDoc.authors,affiliations:oldDoc.affiliations,poster_type:oldDoc.poster_type,audience:oldDoc.audience,event_requirements:oldDoc.event_requirements,width_in:oldDoc.width_in,height_in:oldDoc.height_in,template:oldDoc.template};
-        if($("articleUseMetadata").checked){doc.title=articleResult.title.slice(0,500);doc.authors=articleResult.authors.slice(0,2000);doc.affiliations=articleResult.affiliations.slice(0,3000);}
+        if(replacing)doc={...C.createDocument(),title:oldDoc.title,short_title:oldDoc.short_title,authors:oldDoc.authors,affiliations:oldDoc.affiliations,poster_type:oldDoc.poster_type,audience:oldDoc.audience,event_requirements:oldDoc.event_requirements,width_in:oldDoc.width_in,height_in:oldDoc.height_in,template:oldDoc.template};
+        if($("articleUseMetadata").checked){doc.short_title="";doc.title=articleResult.title.slice(0,500);doc.authors=articleResult.authors.slice(0,2000);doc.affiliations=articleResult.affiliations.slice(0,3000);}
         const previous=doc.sections;
         const layout=arrangePoster([...previous,...additions],doc.template);
         doc.sections=[...previous,...layout.slice(previous.length)];
