@@ -38,10 +38,10 @@ test('dropping into another section moves neighbors while retaining text and app
     assert.equal(result.sections[0].rect.x,.3);
     assert.deepEqual(result.sections.map(s=>[s.text,s.approved,s.font_size]),original.map(s=>[s.text,s.approved,s.font_size]));
 });
-test('crowded boards fall back to non-overlapping template slots without losing sections',()=>{
+test('crowded boards retain requested dimensions and warn about overlaps',()=>{
     const original=C.arrange(Array.from({length:20},(_,i)=>section(`s${i}`)),'three');
     const result=C.placeSection(original,'s4',{x:.02,y:.17,w:.95,h:.8},'three');
-    assert.equal(result.mode,'grid');assert.equal(result.sections.length,20);assertClear(result.sections);
+    assert.equal(result.mode,'crowded');assert.equal(result.sections.length,20);assert.equal(result.sections.find(s=>s.id==='s4').rect.w,.95);assert.match(C.warnings({...C.createDocument(),sections:result.sections}).join(' '),/overlaps/);
     assert.ok(result.sections.every(s=>s.text==='Approved wording'&&s.approved));
 });
 test('unapproved figure placeholders also cause overlap warnings',()=>{
@@ -79,4 +79,17 @@ test('legacy two and three column draft layouts remain valid',()=>{
         const draft={...C.createDocument(),template:name,sections:C.arrange([section('a'),section('b')],name)};
         assert.equal(C.validateImport(draft).template,name);
     }
+});
+
+test('full width banner retains width and neighboring dimensions',()=>{
+ const input=[{...section('a'),rect:{x:.025,y:.2,w:.3,h:.1}},{...section('b'),rect:{x:.35,y:.2,w:.3,h:.2}}];
+ const result=C.placeSection(input,'a',{x:.025,y:.2,w:.95,h:.1},'ctsi-1');
+ assert.equal(result.mode,'packed');assertClear(result.sections);assert.equal(result.sections[0].rect.w,.95);assert.equal(result.sections[1].rect.w,.3);
+});
+test('project export names and custom short title survive import',()=>{
+ const d={...C.createDocument(),title:'Proton versus photon radiotherapy',authors:'Steven J Frank 1, Paul Busse 2'};
+ const date=new Date(2026,10,24);
+ assert.equal(C.exportName(d,'draft',date),'Frank_Proton-vs-photon-radiotherapy_2026-11-24_Draft.json');
+ d.short_title='Custom project';assert.equal(C.validateImport(d).short_title,'Custom project');
+ assert.equal(C.exportName(d,'mockup',date),'Frank_Custom-project_2026-11-24_Mockup.png');
 });
