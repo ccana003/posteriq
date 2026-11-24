@@ -2,6 +2,7 @@
 import base64
 import json
 import math
+import re
 from poster_mockup import _numeric_tokens
 
 POSTER_TYPES = {'research', 'protocol', 'case', 'narrative'}
@@ -167,6 +168,19 @@ def validate_document(value):
     return document
 
 
+
+def _builder_numeric_values(value):
+    """Normalize common manuscript formats without changing units or percentages."""
+    value = re.sub(r'(?<=\d)[·⋅](?=\d)', '.', value)
+    value = re.sub(r'(?<=\d)\s*[-–—]\s*(?=\d)', ' to ', value)
+    words = dict(zip('zero one two three four five six seven eight nine ten eleven twelve'.split(), map(str, range(13))))
+    value = re.sub(r'\b(?:' + '|'.join(words) + r')\b', lambda m: words[m.group().lower()], value, flags=re.I)
+    romans = {'I': '1', 'II': '2', 'III': '3', 'IV': '4', 'V': '5'}
+    value = re.sub(r'\b(phase|stage|grade)\s+(I{1,3}|IV|V)\b(?:\s*[-–—]\s*(I{1,3}|IV|V)\b)?',
+                   lambda m: m.group(1) + ' ' + romans[m.group(2)] + (' to ' + romans[m.group(3)] if m.group(3) else ''), value)
+    return set(_numeric_tokens(value))
+
+
 def draft_section(client, deployment, payload, records):
     document = validate_document(payload.get('document'))
     section = next((s for s in document['sections'] if s['id'] == payload.get('section_id')), None)
@@ -175,7 +189,7 @@ def draft_section(client, deployment, payload, records):
     if not section['notes']:
         raise BuilderValidationError('Provide your source notes before asking the AI to draft this section.')
     schema = object_schema({'text': STR, 'questions': STRINGS, 'editorial_notes': STRINGS})
-    result = complete(client, deployment, 'posteriq_builder_draft', SOURCE_RULES + '''
+    prompt = SOURCE_RULES + '''
 Write the actual concise replacement text for the selected section, based on its
 source notes and role in the whole poster. Execute readability advice rather than
 giving instructions to shorten it. Use short statements or bullets where useful.
@@ -186,12 +200,19 @@ or invented facts in the poster text. Return an empty text when no faithful draf
 is possible. Return editorial_notes explaining the changes. Use the approximate word budget, if supplied, as a fit target rather than a
 reason to omit essential facts. Suggest what needs author attention if a faithful
 version cannot fit. Leave every other section unchanged. Nothing is author-approved until the user explicitly approves.
-''', {'document': document, 'selected_section_id': section['id'],
-      'curated_guidance': guidance_context(records)}, schema)
-    result['text'] = text(result.get('text'), 12000)
-    if _numeric_tokens(result['text']) - _numeric_tokens(section['notes']):
-        raise BuilderGenerationError('The draft introduced numerical content not present in your notes. It was not applied; please retry or edit manually.')
-    return result
+'''
+    context = {'document': document, 'selected_section_id': section['id'],
+               'curated_guidance': guidance_context(records)}
+    supported = _builder_numeric_values(section['notes'])
+    for attempt in range(2):
+        result = complete(client, deployment, 'posteriq_builder_draft', prompt, context, schema)
+        result['text'] = text(result.get('text'), 12000)
+        unsupported = _builder_numeric_values(result['text']) - supported
+        if not unsupported:
+            return result
+        prompt += '\nThe previous draft failed numerical validation. Use exact numerical formats from the selected notes; omit unsupported values and do not convert percentage points to percentages.'
+    values = ', '.join(sorted(unsupported)[:10])
+    raise BuilderGenerationError('The draft introduced numerical content not present in your notes: ' + values + '. It was not applied; please retry or edit manually.')
 
 
 def review_document(client, deployment, payload, records):
