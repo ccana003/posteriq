@@ -54,6 +54,30 @@ class BuilderTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'numerical'):
             draft_section(client_for({'text': 'We enrolled 121 participants.', 'questions': [], 'editorial_notes': []}), 'test', {'document': document(), 'section_id': 's1'}, [])
 
+
+    def test_manuscript_numeric_formats(self):
+        doc = document()
+        doc['sections'][0]['notes'] = ('Phase 3 trial in 21 sites; stage III or stage IV; '
+            'block sizes of four, six, and eight; RBE 1·1 Gy; HR 1·535; '
+            'p-value 0·006; restaging at 8–12 weeks; 9 percentage points.')
+        draft = {'text': 'Phase III; 21 sites; stage 3–4; blocks 4, 6, 8; '
+                 'RBE 1.1 Gy; HR 1.535; p=0.006; 8-12 weeks; 9 percentage points; 21 sites.',
+                 'questions': [], 'editorial_notes': []}
+        result = draft_section(client_for(draft), 'test', {'document': doc, 'section_id': 's1'}, [])
+        self.assertEqual(result['text'], draft['text'])
+        for bad in ('HR 1.536', '9%', '22 sites'):
+            with self.assertRaisesRegex(BuilderGenerationError, 'numerical content'):
+                draft_section(client_for(dict(draft, text=bad)), 'test', {'document': doc, 'section_id': 's1'}, [])
+
+    def test_draft_retries_once(self):
+        bad = {'text': '121 participants', 'questions': [], 'editorial_notes': []}
+        good = dict(bad, text='120 participants')
+        with patch('poster_builder.complete', side_effect=[bad, good]) as complete:
+            result = draft_section(None, 'test', {'document': document(), 'section_id': 's1'}, [])
+        self.assertEqual(result['text'], good['text'])
+        self.assertEqual(complete.call_count, 2)
+        self.assertIn('failed numerical validation', complete.call_args.args[3])
+
     def test_missing_source_does_not_call_ai(self):
         doc = document(); doc['sections'][0]['notes'] = ''
         with self.assertRaises(BuilderValidationError):
