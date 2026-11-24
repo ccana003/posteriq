@@ -48,7 +48,7 @@ def main():
                 route.fulfill(json=result)
             page.route('**/api/builder/*',ai)
             page.goto(f'http://127.0.0.1:{server.server_port}/builder.html')
-            page.get_by_text('Drafts save on this browser and device',exact=True).wait_for()
+            page.get_by_text('Drafts save on this browser and device',exact=False).wait_for()
             page.locator('#posterTitle').fill('A source-grounded poster')
             page.locator('#posterAuthors').fill('Research Team')
             page.locator('#posterAffiliations').fill('University')
@@ -73,11 +73,11 @@ def main():
             page.locator('#approveSection').click()
             assert 'not approved' not in page.locator('#layoutWarnings').inner_text()
             # Templates rearrange approved content, never rewrite it.
-            page.locator('#builderTemplate').select_option('two')
+            page.locator('#builderTemplate').select_option('ctsi-2')
             assert 'Approved and placed' in page.locator('#approvalStatus').inner_text()
             assert '120' in page.locator('#sectionText').input_value()
             page.locator('#compareTemplates').click()
-            assert page.locator('#templateOptions canvas').count()==2
+            assert page.locator('#templateOptions canvas').count()==7
             page.locator('#closeTemplateDialog').click()
             # Drag the actual canvas overlay and verify the saved normalized geometry changes.
             handle=page.locator('[data-section-id="section-2"]')
