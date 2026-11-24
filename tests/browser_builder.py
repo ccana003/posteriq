@@ -48,7 +48,7 @@ def main():
                 route.fulfill(json=result)
             page.route('**/api/builder/*',ai)
             page.goto(f'http://127.0.0.1:{server.server_port}/builder.html')
-            page.get_by_text('Drafts save on this browser and device',exact=False).wait_for()
+            page.wait_for_function('document.getElementById("saveStatus").textContent.trim() === "Drafts save on this browser and device"')
             page.locator('#posterTitle').fill('A source-grounded poster')
             page.locator('#posterAuthors').fill('Research Team')
             page.locator('#posterAffiliations').fill('University')
