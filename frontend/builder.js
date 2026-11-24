@@ -54,6 +54,7 @@
     function syncSetup() {
         const fields = {posterTitle:"title",posterShortTitle:"short_title", posterAuthors:"authors", posterAffiliations:"affiliations", posterAudience:"audience", organizerRequirements:"event_requirements", posterType:"poster_type", posterWidth:"width_in", posterHeight:"height_in", builderTemplate:"template"};
         Object.entries(fields).forEach(([id,key]) => $(id).value = doc[key] || "");
+        $("posterShortTitle").placeholder=C.shortTitle(doc.title)||"Automatically suggested from title";
         $("posterType").disabled = Boolean(doc.sections.length);
         $("planPoster").textContent = doc.sections.length ? "Save details and return to sections" : "Create guided outline";
         $("manualOutline").hidden = Boolean(doc.sections.length);
@@ -447,13 +448,14 @@
     Object.entries(metadata).forEach(([id,key])=>$(id).addEventListener("input",()=>{
         if(key.endsWith("_in")){const value=Number($(id).value);if(!Number.isFinite(value)||value<12||value>96)return;doc[key]=value;}
         else doc[key]=$(id).value;
+        if(key==="title")$("posterShortTitle").placeholder=C.shortTitle(doc.title)||"Automatically suggested from title";
         changed();renderPoster();
     }));
     $("editSetup").addEventListener("click",()=>{syncSetup();$("setupForm").hidden=false;$("sectionEditor").hidden=true;});
     const edits={sectionPurposeInput:"purpose",sectionName:"title",sectionNotes:"notes",sectionText:"text",figureDescription:"figure_description",figureCaption:"caption"};
     Object.entries(edits).forEach(([id,key])=>$(id).addEventListener("input",()=>{
         const s=current();if(!s)return;s[key]=$(id).value;s.approved=false;
-        if(s.kind==="figure"&&key==="caption"&&(s.image_sizing||"proportional")==="proportional")settleSection(s.id,fitFigureRect(s),true);
+        // Caption edits preserve the existing region; fit explicitly if needed.
         changed();approvalStatus();renderSteps();renderPoster();
         if(key==="title")$("sectionTitle").textContent=s.title;
         if(key==="purpose")$("sectionPurpose").textContent=s.purpose;
@@ -485,8 +487,8 @@
         if(s.kind==="figure"&&(s.image_sizing||"proportional")==="proportional"&&["w","h"].includes(k))rect=fitFigureRect(s,k==="w"?value/100:s.rect.w*(value/100)/s.rect.h);
         settleSection(s.id,rect);changed();updatePlacement();renderSteps();renderPoster();
     }));
-    $("sectionFont").addEventListener("change",()=>{const s=current(),value=Number($("sectionFont").value);if(!s||!Number.isFinite(value))return;s.font_size=Math.max(16,Math.min(72,value));if(s.kind==="figure"&&(s.image_sizing||"proportional")==="proportional")settleSection(s.id,fitFigureRect(s),true);changed();renderPoster();});
-    function reorder(delta){const i=doc.sections.findIndex(s=>s.id===selected),j=i+delta;if(j<0||j>=doc.sections.length)return;[doc.sections[i],doc.sections[j]]=[doc.sections[j],doc.sections[i]];changed();renderAll();}
+    $("sectionFont").addEventListener("change",()=>{const s=current(),value=Number($("sectionFont").value);if(!s||!Number.isFinite(value))return;s.font_size=Math.max(16,Math.min(72,value));changed();renderPoster();});
+    function reorder(delta){const i=doc.sections.findIndex(s=>s.id===selected),j=i+delta;if(j<0||j>=doc.sections.length)return;const a=doc.sections[i],b=doc.sections[j];const target={...a.rect,x:b.rect.x,y:b.rect.y};remember();settleSection(a.id,target);[doc.sections[i],doc.sections[j]]=[doc.sections[j],doc.sections[i]];changed();renderAll();}
     $("moveEarlier").addEventListener("click",()=>reorder(-1));$("moveLater").addEventListener("click",()=>reorder(1));
     function removeSection(id) {
         const index=doc.sections.findIndex(s=>s.id===id),s=doc.sections[index];
@@ -652,8 +654,8 @@
         figures.forEach(figure=>additions.push({...sectionDefaults({id:crypto.randomUUID(),title:figure.label,purpose:"Show article evidence; verify the original caption.",question:"What does this image show? Supply its caption and confirm it is complete."}),kind:"figure",imageData:figure.imageData,caption:(figure.caption||""),figure_description:(figure.caption||""),source_filename:articleResult.source_filename,source_page:figure.page,source_excerpts:[]}));
         const totalImageSize=[...(replacing?[]:doc.sections),...additions].reduce((n,s)=>n+(s.imageData||"").length,0);
         if(totalImageSize>8*1024*1024){$("articleStatus").textContent="Choose fewer image candidates to keep the editable draft under its size limit.";return;}
-        if(replacing)doc={...C.createDocument(),title:oldDoc.title,authors:oldDoc.authors,affiliations:oldDoc.affiliations,poster_type:oldDoc.poster_type,audience:oldDoc.audience,event_requirements:oldDoc.event_requirements,width_in:oldDoc.width_in,height_in:oldDoc.height_in,template:oldDoc.template};
-        if($("articleUseMetadata").checked){doc.title=articleResult.title.slice(0,500);doc.authors=articleResult.authors.slice(0,2000);doc.affiliations=articleResult.affiliations.slice(0,3000);}
+        if(replacing)doc={...C.createDocument(),title:oldDoc.title,short_title:oldDoc.short_title,authors:oldDoc.authors,affiliations:oldDoc.affiliations,poster_type:oldDoc.poster_type,audience:oldDoc.audience,event_requirements:oldDoc.event_requirements,width_in:oldDoc.width_in,height_in:oldDoc.height_in,template:oldDoc.template};
+        if($("articleUseMetadata").checked){doc.short_title="";doc.title=articleResult.title.slice(0,500);doc.authors=articleResult.authors.slice(0,2000);doc.affiliations=articleResult.affiliations.slice(0,3000);}
         const previous=doc.sections;
         const layout=arrangePoster([...previous,...additions],doc.template);
         doc.sections=[...previous,...layout.slice(previous.length)];
